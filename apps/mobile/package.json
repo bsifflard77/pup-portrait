@@ -1,0 +1,40 @@
+{
+  "name": "@pup-portrait/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
+    "@pup-portrait/shared": "*",
+    "@stripe/stripe-react-native": "^0.57.0",
+    "@supabase/supabase-js": "^2.86.2",
+    "expo": "~54.0.27",
+    "expo-constants": "^18.0.11",
+    "expo-image": "^3.0.11",
+    "expo-image-picker": "^17.0.9",
+    "expo-linking": "^8.0.10",
+    "expo-router": "^6.0.17",
+    "expo-secure-store": "^15.0.8",
+    "expo-status-bar": "~3.0.9",
+    "expo-web-browser": "^15.0.10",
+    "nativewind": "^4.2.1",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-screens": "^4.18.0",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "tailwindcss": "^3.3.2",
+    "typescript": "~5.9.2"
+  }
+}

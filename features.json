@@ -1,0 +1,156 @@
+{
+  "project": "Pup Portrait",
+  "version": "0.1.0",
+  "features": [
+    {
+      "id": "001",
+      "name": "Project Setup",
+      "description": "Turborepo monorepo with shared packages",
+      "priority": "high",
+      "status": "complete",
+      "files": [
+        "package.json",
+        "turbo.json",
+        "packages/shared/*"
+      ],
+      "completed_at": "2025-12-05"
+    },
+    {
+      "id": "002",
+      "name": "Database Schema",
+      "description": "Supabase PostgreSQL with all tables and RLS",
+      "priority": "high",
+      "status": "complete",
+      "files": [
+        "supabase/migrations/00001_initial_schema.sql",
+        "supabase/config.toml"
+      ],
+      "completed_at": "2025-12-05"
+    },
+    {
+      "id": "003",
+      "name": "Edge Functions",
+      "description": "Supabase Edge Functions for AI and payments",
+      "priority": "high",
+      "status": "complete",
+      "files": [
+        "supabase/functions/generate-portrait/",
+        "supabase/functions/create-checkout/",
+        "supabase/functions/stripe-webhook/"
+      ],
+      "completed_at": "2025-12-05"
+    },
+    {
+      "id": "004",
+      "name": "Mobile App Structure",
+      "description": "Expo Router with tabs and auth flows",
+      "priority": "high",
+      "status": "complete",
+      "files": [
+        "apps/mobile/app/*"
+      ],
+      "completed_at": "2025-12-05"
+    },
+    {
+      "id": "005",
+      "name": "Authentication",
+      "description": "Email/password and social auth with guest tracking",
+      "priority": "high",
+      "status": "complete",
+      "files": [
+        "apps/mobile/lib/supabase.ts",
+        "apps/mobile/lib/guest-tracker.ts",
+        "apps/mobile/store/auth-store.ts",
+        "apps/mobile/app/(auth)/*"
+      ],
+      "completed_at": "2025-12-05"
+    },
+    {
+      "id": "006",
+      "name": "Portrait Generator",
+      "description": "UI for breed, color, background selection and generation",
+      "priority": "high",
+      "status": "complete",
+      "files": [
+        "apps/mobile/app/(tabs)/home.tsx",
+        "apps/mobile/store/portrait-store.ts"
+      ],
+      "completed_at": "2025-12-05"
+    },
+    {
+      "id": "007",
+      "name": "External Services Config",
+      "description": "Configure Supabase, Stripe, and Google AI",
+      "priority": "high",
+      "requirements": [
+        "Create Supabase project",
+        "Configure auth providers (Google, Apple)",
+        "Get Google AI API key",
+        "Create Stripe products and prices",
+        "Set up Stripe webhook endpoint"
+      ],
+      "status": "pending",
+      "files": [],
+      "completed_at": null
+    },
+    {
+      "id": "008",
+      "name": "Admin Dashboard",
+      "description": "Standalone Next.js dashboard for user/revenue management",
+      "priority": "medium",
+      "requirements": [
+        "User management views",
+        "Portrait browser",
+        "Revenue analytics",
+        "Subscription management"
+      ],
+      "status": "pending",
+      "files": [],
+      "completed_at": null
+    },
+    {
+      "id": "009",
+      "name": "Premium Features",
+      "description": "Custom colors, backgrounds, and styles for premium users",
+      "priority": "medium",
+      "status": "complete",
+      "files": [
+        "packages/shared/src/pricing.ts",
+        "apps/mobile/app/(tabs)/home.tsx"
+      ],
+      "completed_at": "2025-12-05"
+    },
+    {
+      "id": "010",
+      "name": "Google AdSense",
+      "description": "Ad integration for free tier users",
+      "priority": "low",
+      "status": "pending",
+      "files": [],
+      "completed_at": null
+    }
+  ],
+  "decisions": [
+    {
+      "date": "2025-12-05",
+      "decision": "Use Supabase instead of FastAPI",
+      "reason": "Faster development, built-in auth, PostgreSQL, edge functions"
+    },
+    {
+      "date": "2025-12-05",
+      "decision": "Nano Banana over DALL-E 3",
+      "reason": "Lower cost ($0.039 vs $0.08+), faster generation, comparable quality"
+    },
+    {
+      "date": "2025-12-05",
+      "decision": "Freemium with $7.99/mo pricing",
+      "reason": "Market research shows $7-10 sweet spot for consumer AI apps"
+    },
+    {
+      "date": "2025-12-05",
+      "decision": "1 free guest generation",
+      "reason": "Lower friction for conversion, demo value before signup wall"
+    }
+  ],
+  "blockers": []
+}
