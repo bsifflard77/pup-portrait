@@ -21,8 +21,8 @@ export const PRICING = {
     customBackgrounds: true,
   },
   LIFETIME: {
-    price: 1999, // $19.99 in cents
-    portraitCredits: 100,
+    price: 7999, // $79.99 in cents
+    portraitCredits: null, // unlimited
     resolution: 1024,
     hasWatermark: false,
     processingPriority: 'priority' as const,
@@ -50,19 +50,16 @@ export function getTierConfig(tier: SubscriptionTier) {
   }
 }
 
-export function canGenerate(tier: SubscriptionTier, dailyUsed: number, lifetimeCredits?: number): boolean {
-  if (tier === 'premium') return true;
-  if (tier === 'lifetime') return (lifetimeCredits ?? 0) > 0;
+export function canGenerate(tier: SubscriptionTier, dailyUsed: number): boolean {
+  if (tier === 'premium' || tier === 'lifetime') return true;
   return dailyUsed < PRICING.FREE.dailyLimit;
 }
 
 export function getRemainingGenerations(
   tier: SubscriptionTier,
-  dailyUsed: number,
-  lifetimeCredits?: number
+  dailyUsed: number
 ): number | null {
-  if (tier === 'premium') return null; // unlimited
-  if (tier === 'lifetime') return lifetimeCredits ?? 0;
+  if (tier === 'premium' || tier === 'lifetime') return null; // unlimited
   return Math.max(0, PRICING.FREE.dailyLimit - dailyUsed);
 }
 

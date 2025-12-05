@@ -1,13 +1,13 @@
 # Progress Tracker
 **Project:** Pup Portrait
 **Last Updated:** 2025-12-05
-**Current Focus:** Project Setup Complete - Ready for Configuration
+**Current Focus:** External Services Configured - Ready for Testing
 
 ---
 
 ## Active Task
-- **Task:** Configure external services (Supabase, Stripe, Google AI)
-- **Feature:** Setup
+- **Task:** Test full app flow and build admin dashboard
+- **Feature:** Testing & Admin
 - **Started:** 2025-12-05
 
 ---
@@ -76,6 +76,16 @@
    - All Phase 1 setup code committed and pushed
    - User also set up Supabase project
 
+ **17:00** - Configured external services
+   - Connected Supabase project (uzbhimzqwwgkjemflgqh)
+   - Ran database migration - all tables created
+   - Added Google AI API key for Nano Banana
+   - Configured Stripe with products and webhook:
+     - Monthly: $7.99/mo (price_1Sb7AXBxllKMUxPg4p6crd0g)
+     - Yearly: $59.99/yr (price_1Sb7AXBxllKMUxPg4lODa6mb)
+     - Lifetime: $79.99 unlimited (price_1Sb7AXBxllKMUxPgxgEQQYzQ)
+   - Updated pricing.ts to reflect $79.99 lifetime (unlimited)
+
 ---
 
 ## Feature Status
@@ -90,7 +100,7 @@
 | 006 | Portrait Generator UI | Complete | Breed/color/bg selectors |
 | 007 | Gallery | Complete | Portrait grid view |
 | 008 | Profile & Settings | Complete | User info, upgrade prompt |
-| 009 | External Services | Pending | Supabase, Stripe, Google AI |
+| 009 | External Services | Complete | Supabase, Stripe, Google AI configured |
 | 010 | Admin Dashboard | Pending | Next.js standalone app |
 
 **Legend:** Complete | In Progress | Pending | Blocked
@@ -106,24 +116,24 @@ None currently - awaiting external service configuration
 1. **Unified Codebase:** React Native + Expo for web/iOS/Android
 2. **Backend:** Supabase (PostgreSQL, Auth, Storage, Edge Functions)
 3. **AI:** Nano Banana (Google Gemini) at ~$0.039/image
-4. **Pricing:** $7.99/mo, $59.99/yr, $19.99 lifetime
+4. **Pricing:** $7.99/mo, $59.99/yr, $79.99 lifetime (unlimited)
 5. **Guest Trial:** 1 free generation before signup required
 6. **Admin:** Standalone Next.js dashboard
 
 ---
 
 ## Next Up
-1. Create Supabase project and configure auth providers
-2. Get Google AI API key and test Nano Banana
-3. Set up Stripe products, prices, and webhooks
-4. Test full flow: guest → signup → generate → payment
-5. Build admin dashboard
+1. Test full flow: guest → signup → generate → payment
+2. Build admin dashboard (Next.js)
+3. Deploy Edge Functions to Supabase
+4. Configure OAuth providers (Google, Apple) in Supabase
+5. Deploy and test on web/mobile
 
 ---
 
 ## Resume Instructions
 ```
 Read this file. Continue from "Active Task" section.
-Check "Session Log" for recent context.
-External services need to be configured before testing.
+All external services are configured (.env is ready).
+Next step: test the app or build admin dashboard.
 ```
