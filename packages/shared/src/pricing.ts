@@ -110,3 +110,159 @@ export const PREMIUM_BACKGROUNDS = [
   { id: 'studio', name: 'Photo Studio', value: 'a professional photo studio with soft lighting' },
   { id: 'autumn', name: 'Autumn Leaves', value: 'an autumn scene with colorful fallen leaves' },
 ] as const;
+
+// Aspect ratios for different social platforms
+export type AspectRatioId = 'square' | 'portrait' | 'story' | 'landscape';
+
+export interface AspectRatio {
+  id: AspectRatioId;
+  name: string;
+  ratio: string;
+  width: number;
+  height: number;
+  icon: string;
+  description: string;
+  isPremium: boolean;
+}
+
+export const ASPECT_RATIOS: AspectRatio[] = [
+  {
+    id: 'square',
+    name: 'Square',
+    ratio: '1:1',
+    width: 1,
+    height: 1,
+    icon: 'square-outline',
+    description: 'Instagram Feed',
+    isPremium: false
+  },
+  {
+    id: 'portrait',
+    name: 'Portrait',
+    ratio: '4:5',
+    width: 4,
+    height: 5,
+    icon: 'phone-portrait-outline',
+    description: 'Instagram/Facebook',
+    isPremium: true
+  },
+  {
+    id: 'story',
+    name: 'Story',
+    ratio: '9:16',
+    width: 9,
+    height: 16,
+    icon: 'tablet-portrait-outline',
+    description: 'Stories/TikTok',
+    isPremium: true
+  },
+  {
+    id: 'landscape',
+    name: 'Landscape',
+    ratio: '16:9',
+    width: 16,
+    height: 9,
+    icon: 'tablet-landscape-outline',
+    description: 'Twitter/YouTube',
+    isPremium: true
+  },
+] as const;
+
+export const FREE_ASPECT_RATIOS = ASPECT_RATIOS.filter(r => !r.isPremium);
+export const PREMIUM_ASPECT_RATIOS = ASPECT_RATIOS.filter(r => r.isPremium);
+
+// Social sharing platforms
+export interface SocialPlatform {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  shareUrl: (imageUrl: string, text: string) => string;
+}
+
+export const SOCIAL_PLATFORMS: SocialPlatform[] = [
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    icon: 'logo-instagram',
+    color: '#E4405F',
+    shareUrl: () => '', // Instagram requires app-based sharing
+  },
+  {
+    id: 'facebook',
+    name: 'Facebook',
+    icon: 'logo-facebook',
+    color: '#1877F2',
+    shareUrl: (imageUrl, text) =>
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(imageUrl)}&quote=${encodeURIComponent(text)}`,
+  },
+  {
+    id: 'twitter',
+    name: 'X',
+    icon: 'logo-twitter',
+    color: '#000000',
+    shareUrl: (imageUrl, text) =>
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(imageUrl)}`,
+  },
+  {
+    id: 'pinterest',
+    name: 'Pinterest',
+    icon: 'logo-pinterest',
+    color: '#BD081C',
+    shareUrl: (imageUrl, text) =>
+      `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(imageUrl)}&description=${encodeURIComponent(text)}`,
+  },
+  {
+    id: 'tiktok',
+    name: 'TikTok',
+    icon: 'logo-tiktok',
+    color: '#000000',
+    shareUrl: () => '', // TikTok requires app-based sharing
+  },
+] as const;
+
+// Branding text for free tier shares
+export const SHARE_BRANDING = {
+  watermarkText: 'Created with Pup Portrait',
+  shareText: (breed: string) => `Check out this adorable ${breed} portrait I created with Pup Portrait! 🐕`,
+  shareTextWithLink: (breed: string) => `Check out this adorable ${breed} portrait I created with Pup Portrait! 🐕\n\nCreate yours at pupportrait.com`,
+  hashtags: '#PupPortrait #AIArt #DogPortrait #Dogs',
+};
+
+// Feature availability by tier
+export const FEATURES = {
+  FREE: {
+    dailyGenerations: 3,
+    aspectRatios: ['square'] as AspectRatioId[],
+    resolution: 512,
+    watermark: true,
+    brandedSharing: true, // Must include "Created by Pup Portrait"
+    hdDownload: false,
+    customColors: false,
+    customBackgrounds: false,
+    premiumBreeds: false,
+    saveToGallery: true,
+  },
+  PREMIUM: {
+    dailyGenerations: null, // unlimited
+    aspectRatios: ['square', 'portrait', 'story', 'landscape'] as AspectRatioId[],
+    resolution: 1024,
+    watermark: false,
+    brandedSharing: false, // Can opt out
+    hdDownload: true,
+    customColors: true,
+    customBackgrounds: true,
+    premiumBreeds: true,
+    saveToGallery: true,
+  },
+} as const;
+
+export function canUseAspectRatio(tier: SubscriptionTier, ratioId: AspectRatioId): boolean {
+  if (tier === 'premium' || tier === 'lifetime') return true;
+  return FEATURES.FREE.aspectRatios.includes(ratioId);
+}
+
+export function requiresBrandedSharing(tier: SubscriptionTier): boolean {
+  if (tier === 'premium' || tier === 'lifetime') return false;
+  return true;
+}

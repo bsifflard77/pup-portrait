@@ -27,8 +27,9 @@ export function generateId(): string {
 
 // Constants
 export const APP_NAME = 'Pup Portrait';
-export const APP_DOMAIN = 'favorite-dog.com';
-export const SUPPORT_EMAIL = 'support@favorite-dog.com';
+export const APP_DOMAIN = 'pupportrait.com';
+export const SUPPORT_EMAIL = 'support@pupportrait.com';
+export const APP_TAGLINE = 'Create Your Dream Dog';
 
 // Image constants
 export const IMAGE_SIZES = {

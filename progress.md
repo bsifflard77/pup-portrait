@@ -1,14 +1,14 @@
 # Progress Tracker
 **Project:** Pup Portrait
-**Last Updated:** 2025-12-05
-**Current Focus:** External Services Configured - Ready for Testing
+**Last Updated:** 2025-12-14
+**Current Focus:** UI Redesign Complete - Enhanced Landing Page
 
 ---
 
 ## Active Task
-- **Task:** Test full app flow and build admin dashboard
-- **Feature:** Testing & Admin
-- **Started:** 2025-12-05
+- **Task:** Test full app flow and continue UI refinements
+- **Feature:** UI/UX Improvements
+- **Started:** 2025-12-14
 
 ---
 
@@ -86,6 +86,27 @@
      - Lifetime: $79.99 unlimited (price_1Sb7AXBxllKMUxPgxgEQQYzQ)
    - Updated pricing.ts to reflect $79.99 lifetime (unlimited)
 
+### 2025-12-14
+
+ **17:00** - Major UI/UX Redesign
+   - Redesigned landing page with modern, polished look
+   - Added hero section with logo, tagline, and app branding
+   - Implemented aspect ratio selector (Square free, Portrait/Story/Landscape premium)
+   - Added social sharing buttons (Facebook, X, Pinterest) with branding
+   - Portrait preview now adjusts to selected aspect ratio
+   - Gradient generate button with press animation
+   - Added "Created with Pup Portrait" watermark on free tier images
+   - Features grid showcasing app benefits
+   - Pricing teaser section with premium benefits
+   - Updated shared package with:
+     - ASPECT_RATIOS config with premium flags
+     - SOCIAL_PLATFORMS for sharing
+     - SHARE_BRANDING for watermarks and share text
+     - FEATURES config for tier-based feature access
+     - Helper functions: canUseAspectRatio(), requiresBrandedSharing()
+   - Switched from NativeWind to StyleSheet for reliable web rendering
+   - Installed expo-linear-gradient for button effects
+
 ---
 
 ## Feature Status
@@ -97,7 +118,7 @@
 | 003 | Edge Functions | Complete | Generate, checkout, webhook |
 | 004 | Mobile App Structure | Complete | Routes, layouts, screens |
 | 005 | Auth Flow | Complete | Login, signup, guest tracking |
-| 006 | Portrait Generator UI | Complete | Breed/color/bg selectors |
+| 006 | Portrait Generator UI | Complete | Breed/aspect ratio/social share |
 | 007 | Gallery | Complete | Portrait grid view |
 | 008 | Profile & Settings | Complete | User info, upgrade prompt |
 | 009 | External Services | Complete | Supabase, Stripe, Google AI configured |
@@ -108,7 +129,7 @@
 ---
 
 ## Blockers
-None currently - awaiting external service configuration
+None currently - ready for testing
 
 ---
 
@@ -135,5 +156,6 @@ None currently - awaiting external service configuration
 ```
 Read this file. Continue from "Active Task" section.
 All external services are configured (.env is ready).
-Next step: test the app or build admin dashboard.
+UI redesign complete - landing page has aspect ratios, social sharing, premium tiers.
+Next step: test the app, fix any issues, or build admin dashboard.
 ```
