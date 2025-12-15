@@ -14,6 +14,7 @@ interface GenerateRequest {
   color?: string;
   background?: string;
   style?: 'realistic' | 'cartoon' | 'watercolor' | 'artistic';
+  themePrompt?: string;
   isGuest?: boolean;
   deviceFingerprint?: string;
 }
@@ -107,7 +108,7 @@ serve(async (req: Request) => {
 
     // Parse request body
     const body: GenerateRequest = await req.json();
-    const { breed, color, background, style = 'realistic', isGuest, deviceFingerprint } = body;
+    const { breed, color, background, style = 'realistic', themePrompt, isGuest, deviceFingerprint } = body;
 
     // Handle guest user
     if (!userId && isGuest) {
@@ -158,9 +159,12 @@ serve(async (req: Request) => {
       artistic: 'artistic portrait, painterly style, expressive brushstrokes',
     };
 
+    // Build theme text if provided
+    const themeText = themePrompt ? ` Theme: ${themePrompt}.` : '';
+
     const prompt = `A beautiful portrait of a ${breedText}${colorText}, ${stylePrompts[style]}. ` +
       `The dog has a friendly, happy expression with bright eyes. ` +
-      `Background: ${backgroundText}. ` +
+      `Background: ${backgroundText}.${themeText} ` +
       `High quality, detailed, centered composition.`;
 
     // Call Gemini 2.0 Flash Experimental for image generation

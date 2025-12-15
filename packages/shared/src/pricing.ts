@@ -284,6 +284,8 @@ export interface Theme {
   available: boolean; // Whether currently selectable (for seasonal themes)
   startMonth?: number; // 1-12, for auto-availability
   endMonth?: number; // 1-12, for auto-availability
+  startDay?: number; // 1-31, optional day precision
+  endDay?: number; // 1-31, optional day precision
 }
 
 // Seasons - always available but highlighted when in season
@@ -340,7 +342,9 @@ export const HOLIDAYS: Theme[] = [
     prompt: 'in a festive Christmas setting with a decorated tree, twinkling lights, wrapped presents, and holiday decorations',
     available: true,
     startMonth: 12,
+    startDay: 1,
     endMonth: 12,
+    endDay: 25,
   },
   {
     id: 'halloween',
@@ -409,8 +413,10 @@ export const HOLIDAYS: Theme[] = [
     icon: 'sparkles-outline',
     prompt: 'in a glamorous New Year\'s celebration setting with confetti, streamers, champagne glasses, and festive gold decorations',
     available: true,
-    startMonth: 1,
+    startMonth: 12,
+    startDay: 26,
     endMonth: 1,
+    endDay: 7,
   },
 ];
 
@@ -485,23 +491,34 @@ export const EVENTS: Theme[] = [
 // Combined themes
 export const ALL_THEMES: Theme[] = [...SEASONS, ...HOLIDAYS, ...EVENTS];
 
-// Helper to get current month (1-12)
-function getCurrentMonth(): number {
-  return new Date().getMonth() + 1;
+// Helper to get current date info
+function getCurrentDateInfo(): { month: number; day: number } {
+  const now = new Date();
+  return {
+    month: now.getMonth() + 1, // 1-12
+    day: now.getDate(), // 1-31
+  };
 }
 
 // Check if a theme is "in season" based on current date
 export function isThemeInSeason(theme: Theme): boolean {
   if (!theme.startMonth || !theme.endMonth) return true; // Events are always available
 
-  const currentMonth = getCurrentMonth();
+  const { month, day } = getCurrentDateInfo();
+  const startDay = theme.startDay || 1;
+  const endDay = theme.endDay || 31;
 
-  // Handle year wrap (e.g., Winter: Dec-Feb)
-  if (theme.startMonth > theme.endMonth) {
-    return currentMonth >= theme.startMonth || currentMonth <= theme.endMonth;
+  // Convert to comparable format: MMDD
+  const currentDate = month * 100 + day;
+  const startDate = theme.startMonth * 100 + startDay;
+  const endDate = theme.endMonth * 100 + endDay;
+
+  // Handle year wrap (e.g., New Year's: Dec 26 - Jan 7)
+  if (startDate > endDate) {
+    return currentDate >= startDate || currentDate <= endDate;
   }
 
-  return currentMonth >= theme.startMonth && currentMonth <= theme.endMonth;
+  return currentDate >= startDate && currentDate <= endDate;
 }
 
 // Get themes sorted by relevance (in-season first)

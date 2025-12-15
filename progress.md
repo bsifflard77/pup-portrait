@@ -1,13 +1,13 @@
 # Progress Tracker
 **Project:** Pup Portrait
 **Last Updated:** 2025-12-15
-**Current Focus:** Portrait Generation Working - Fix Image Display
+**Current Focus:** Theme Support Complete - Portrait Generation Fully Working
 
 ---
 
 ## Active Task
-- **Task:** Fix portrait image display after successful generation
-- **Feature:** Portrait Generation
+- **Task:** Code cleanup and full user flow testing
+- **Feature:** Polish & Testing
 - **Started:** 2025-12-15
 
 ---
@@ -116,6 +116,24 @@
    - Screen shows success message but image doesn't display (blank)
    - Need to debug: check Storage bucket for image, check database record, check frontend display logic
 
+ **11:00** - Fixed Image Display Bug
+   - Root cause: Edge Function returns snake_case keys from database (image_url)
+   - But frontend Portrait interface expects camelCase (imageUrl)
+   - Fix: Added transformation in portrait-store.ts generatePortrait() to map keys
+   - Same pattern already used in fetchUserPortraits()
+
+ **12:00** - Theme Support Integration
+   - Added themePrompt to GeneratePortraitRequest type
+   - Updated handleGenerate() in index.tsx to pass selectedTheme.prompt
+   - Updated portrait-store.ts to include themePrompt in API request body
+   - Updated Edge Function to accept themePrompt and integrate into AI prompt
+   - Enhanced theme system with day-level precision for holiday transitions:
+     - Christmas: Dec 1-25
+     - New Year's: Dec 26 - Jan 7
+     - Added startDay/endDay to Theme interface
+     - Updated isThemeInSeason() to handle day-level comparisons
+   - **TESTED & WORKING:** Themes now apply to generated portraits!
+
 ### 2025-12-14
 
  **17:00** - Major UI/UX Redesign
@@ -189,13 +207,12 @@ None currently - ready for testing
 ---
 
 ## Next Up
-1. **IMMEDIATE:** Fix image display - portrait generates but doesn't show on screen
-2. Clean up hardcoded credentials (return to using .env variables)
-3. Remove debug console.log statements from portrait-store.ts
-4. Test full flow: guest → signup → generate → payment
-5. Build admin dashboard (Next.js)
-6. Configure OAuth providers (Google, Apple) in Supabase
-7. Deploy and test on iOS/Android
+1. Clean up hardcoded credentials (return to using .env variables)
+2. Remove debug console.log statements from portrait-store.ts
+3. Test full flow: guest → signup → generate → payment
+4. Build admin dashboard (Next.js)
+5. Configure OAuth providers (Google, Apple) in Supabase
+6. Deploy and test on iOS/Android
 
 ---
 
@@ -209,14 +226,19 @@ CRITICAL INFO FOR NEXT SESSION:
 - Gemini API working with model: gemini-2.0-flash-exp
 - API key must be in URL: ?key=${googleAiKey}
 - Must include: generationConfig: { responseModalities: ["Text", "Image"] }
-- New Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo (with billing enabled)
+- Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo (with billing enabled)
 
-CURRENT BUG:
-- Portrait generates successfully (API returns data, saves to DB)
-- But image doesn't display on screen after generation
-- Check: Storage bucket, database record, frontend display component
+WORKING FEATURES:
+- Portrait generation with Gemini AI ✓
+- Image display after generation ✓
+- Theme support (Christmas, Winter, Birthday, etc.) ✓
+- Automatic theme transitions based on date ✓
 
 FILES WITH TEMPORARY HARDCODED VALUES (need cleanup later):
 - apps/mobile/lib/supabase.ts - hardcoded Supabase URL/key
 - apps/mobile/store/portrait-store.ts - hardcoded Supabase URL/key + debug logs
+
+TO RESET GUEST TRIAL FOR TESTING:
+- Browser console: localStorage.removeItem('pup_portrait_guest')
+- Or use incognito window
 ```

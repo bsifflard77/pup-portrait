@@ -80,7 +80,10 @@ export default function LandingPage() {
     }
 
     const breed = selectedBreed === 'random' ? getRandomBreed().id : selectedBreed;
-    await generatePortrait({ breed }, true);
+    await generatePortrait({
+      breed,
+      themePrompt: selectedTheme?.prompt,
+    }, true);
     setHasUsedTrial(true);
   };
 

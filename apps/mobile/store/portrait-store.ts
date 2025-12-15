@@ -38,6 +38,7 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
         color: request.color,
         background: request.background,
         style: request.style || 'realistic',
+        themePrompt: request.themePrompt,
       };
 
       // Add guest tracking if not authenticated
@@ -89,8 +90,25 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
         await markGuestTrialUsed();
       }
 
+      // Transform snake_case from API to camelCase for frontend
+      const portrait = data.portrait;
+      const transformedPortrait: Portrait = {
+        id: portrait.id,
+        userId: portrait.user_id,
+        breed: portrait.breed,
+        color: portrait.color,
+        background: portrait.background,
+        style: portrait.style as PortraitStyle,
+        imageUrl: portrait.image_url,
+        thumbnailUrl: portrait.thumbnail_url,
+        prompt: portrait.prompt,
+        isPremium: portrait.is_premium,
+        isPublic: portrait.is_public,
+        createdAt: portrait.created_at,
+      };
+
       set({
-        currentPortrait: data.portrait,
+        currentPortrait: transformedPortrait,
         remainingGenerations: data.remainingGenerations,
         isGenerating: false,
       });

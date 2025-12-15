@@ -63,6 +63,7 @@ export interface GeneratePortraitRequest {
   color?: string;
   background?: string;
   style?: PortraitStyle;
+  themePrompt?: string; // Theme AI prompt modifier (e.g., "Christmas decorations, Santa hat")
 }
 
 export interface GeneratePortraitResponse {
