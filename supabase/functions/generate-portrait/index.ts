@@ -163,12 +163,14 @@ serve(async (req: Request) => {
       `Background: ${backgroundText}. ` +
       `High quality, detailed, centered composition.`;
 
-    // Call Nano Banana (Google Gemini) API
+    // Call Gemini 2.0 Flash Experimental for image generation
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${googleAiKey}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           contents: [{
             parts: [{
@@ -176,8 +178,7 @@ serve(async (req: Request) => {
             }]
           }],
           generationConfig: {
-            responseModalities: ['IMAGE', 'TEXT'],
-            responseMimeType: 'image/png',
+            responseModalities: ["Text", "Image"]
           }
         })
       }
@@ -191,17 +192,19 @@ serve(async (req: Request) => {
 
     const geminiData = await geminiResponse.json();
 
-    // Extract image data from response
-    const imageData = geminiData.candidates?.[0]?.content?.parts?.find(
+    // Extract image data from Gemini response
+    const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(
       (part: any) => part.inlineData?.mimeType?.startsWith('image/')
-    )?.inlineData;
+    );
+    const imageData = imagePart?.inlineData?.data;
 
     if (!imageData) {
+      console.error('Gemini response:', JSON.stringify(geminiData));
       throw new Error('No image generated from Gemini');
     }
 
     // Upload to Supabase Storage
-    const imageBuffer = Uint8Array.from(atob(imageData.data), c => c.charCodeAt(0));
+    const imageBuffer = Uint8Array.from(atob(imageData), c => c.charCodeAt(0));
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
     const filePath = userId ? `portraits/${userId}/${fileName}` : `portraits/guest/${fileName}`;
 

@@ -1,14 +1,14 @@
 # Progress Tracker
 **Project:** Pup Portrait
-**Last Updated:** 2025-12-14
-**Current Focus:** UI Redesign Complete - Enhanced Landing Page
+**Last Updated:** 2025-12-15
+**Current Focus:** Portrait Generation Working - Fix Image Display
 
 ---
 
 ## Active Task
-- **Task:** Test full app flow and continue UI refinements
-- **Feature:** UI/UX Improvements
-- **Started:** 2025-12-14
+- **Task:** Fix portrait image display after successful generation
+- **Feature:** Portrait Generation
+- **Started:** 2025-12-15
 
 ---
 
@@ -86,6 +86,36 @@
      - Lifetime: $79.99 unlimited (price_1Sb7AXBxllKMUxPgxgEQQYzQ)
    - Updated pricing.ts to reflect $79.99 lifetime (unlimited)
 
+### 2025-12-15
+
+ **08:00** - Fixed Supabase Configuration & Edge Function Debugging
+   - Discovered .env had wrong Supabase project URL (was uzbhimzqwwgkjemflgqh)
+   - Corrected to actual project: rmalsvaoomhrgflioiqx.supabase.co
+   - Created .env in apps/mobile/ directory (Expo needs it there, not just root)
+   - Temporarily hardcoded Supabase credentials in supabase.ts and portrait-store.ts to bypass Metro caching issues
+   - Fixed "Missing authorization header" error by adding Bearer token for anonymous requests
+
+ **09:00** - Database & Storage Setup
+   - Ran SQL migration via Supabase SQL Editor (CREATE POLICY IF NOT EXISTS syntax issue fixed)
+   - Created 'portraits' storage bucket with public read access
+   - Set up storage policies: public read, authenticated insert, owner update/delete
+
+ **10:00** - Gemini API Integration Debugging
+   - Initial model `gemini-2.0-flash-exp` returned 400 error
+   - Tried `gemini-2.0-flash-preview-image-generation` - 404 error
+   - Tried `imagen-3.0-generate-002` with :predict endpoint - 404 error
+   - Tried `gemini-2.5-flash-preview-image-generation` - 404 error
+   - Finally got `gemini-2.0-flash-exp` working with correct config:
+     - API key in URL query param: `?key=${googleAiKey}`
+     - `generationConfig: { responseModalities: ["Text", "Image"] }`
+   - Hit 429 rate limit errors - user added billing to get free credits
+   - **SUCCESS:** Portrait generation now works! Image created and saved to Supabase
+
+ **10:30** - Current Issue
+   - Portrait generates successfully (confirmed in Edge Function response)
+   - Screen shows success message but image doesn't display (blank)
+   - Need to debug: check Storage bucket for image, check database record, check frontend display logic
+
 ### 2025-12-14
 
  **17:00** - Major UI/UX Redesign
@@ -106,6 +136,21 @@
      - Helper functions: canUseAspectRatio(), requiresBrandedSharing()
    - Switched from NativeWind to StyleSheet for reliable web rendering
    - Installed expo-linear-gradient for button effects
+
+ **18:00** - Added Themes Feature (FREE for all users!)
+   - Created comprehensive themes system in shared package:
+     - **4 Seasons:** Spring, Summer, Fall, Winter
+     - **8 Holidays:** Christmas, Halloween, Valentine's, Easter, 4th of July, Thanksgiving, St. Patrick's, New Year's
+     - **8 Events:** Birthday, Graduation, Wedding, Beach Vacation, Camping, Game Day, Cozy Home, Adventure
+   - Each theme includes custom AI prompt modifier for portrait generation
+   - Smart "in-season" detection - highlights current/relevant themes
+   - Added theme selector to landing page:
+     - Featured themes quick-select (4 most relevant)
+     - "See All Themes" expandable dropdown with categories
+     - Visual badges for in-season themes
+     - Selected theme preview with clear button
+   - Helper functions: isThemeInSeason(), getFeaturedThemes(), getThemesByCategory()
+   - Updated FEATURES config to show themes available for FREE tier
 
 ---
 
@@ -144,18 +189,34 @@ None currently - ready for testing
 ---
 
 ## Next Up
-1. Test full flow: guest → signup → generate → payment
-2. Build admin dashboard (Next.js)
-3. Deploy Edge Functions to Supabase
-4. Configure OAuth providers (Google, Apple) in Supabase
-5. Deploy and test on web/mobile
+1. **IMMEDIATE:** Fix image display - portrait generates but doesn't show on screen
+2. Clean up hardcoded credentials (return to using .env variables)
+3. Remove debug console.log statements from portrait-store.ts
+4. Test full flow: guest → signup → generate → payment
+5. Build admin dashboard (Next.js)
+6. Configure OAuth providers (Google, Apple) in Supabase
+7. Deploy and test on iOS/Android
 
 ---
 
 ## Resume Instructions
 ```
 Read this file. Continue from "Active Task" section.
-All external services are configured (.env is ready).
-UI redesign complete - landing page has aspect ratios, social sharing, premium tiers.
-Next step: test the app, fix any issues, or build admin dashboard.
+
+CRITICAL INFO FOR NEXT SESSION:
+- Supabase project: rmalsvaoomhrgflioiqx.supabase.co
+- Edge Function `generate-portrait` is deployed via Dashboard (not CLI)
+- Gemini API working with model: gemini-2.0-flash-exp
+- API key must be in URL: ?key=${googleAiKey}
+- Must include: generationConfig: { responseModalities: ["Text", "Image"] }
+- New Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo (with billing enabled)
+
+CURRENT BUG:
+- Portrait generates successfully (API returns data, saves to DB)
+- But image doesn't display on screen after generation
+- Check: Storage bucket, database record, frontend display component
+
+FILES WITH TEMPORARY HARDCODED VALUES (need cleanup later):
+- apps/mobile/lib/supabase.ts - hardcoded Supabase URL/key
+- apps/mobile/store/portrait-store.ts - hardcoded Supabase URL/key + debug logs
 ```

@@ -17,6 +17,12 @@ import {
   SHARE_BRANDING,
   APP_NAME,
   APP_TAGLINE,
+  Theme,
+  SEASONS,
+  HOLIDAYS,
+  EVENTS,
+  getFeaturedThemes,
+  isThemeInSeason,
 } from '@pup-portrait/shared';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -49,8 +55,13 @@ export default function LandingPage() {
 
   const [selectedBreed, setSelectedBreed] = useState('random');
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioId>('square');
+  const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [showBreedPicker, setShowBreedPicker] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
+
+  // Get featured themes (in-season ones first)
+  const featuredThemes = getFeaturedThemes(4);
 
   useEffect(() => {
     hasGuestUsedFreeTrial().then(setHasUsedTrial);
@@ -183,6 +194,146 @@ export default function LandingPage() {
                     </Pressable>
                   ))}
                 </ScrollView>
+              </View>
+            )}
+          </View>
+
+          {/* Theme Selector */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Add a Theme</Text>
+              <View style={styles.freeBadge}>
+                <Ionicons name="gift" size={12} color={colors.accentGreen} />
+                <Text style={styles.freeBadgeText}>FREE</Text>
+              </View>
+            </View>
+
+            {/* Featured Themes (Quick Select) */}
+            <View style={styles.featuredThemes}>
+              {featuredThemes.map((theme) => {
+                const isSelected = selectedTheme?.id === theme.id;
+                const inSeason = isThemeInSeason(theme);
+                return (
+                  <Pressable
+                    key={theme.id}
+                    onPress={() => setSelectedTheme(isSelected ? null : theme)}
+                    style={[
+                      styles.featuredThemeItem,
+                      isSelected && styles.featuredThemeItemSelected,
+                    ]}
+                  >
+                    <View style={styles.themeIconContainer}>
+                      <Ionicons
+                        name={theme.icon as any}
+                        size={20}
+                        color={isSelected ? colors.primary : colors.white}
+                      />
+                      {inSeason && (
+                        <View style={styles.seasonBadge}>
+                          <Ionicons name="sparkles" size={8} color={colors.accent} />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.featuredThemeName,
+                      isSelected && styles.featuredThemeNameSelected,
+                    ]}>
+                      {theme.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Show More Button */}
+            <Pressable
+              onPress={() => setShowThemePicker(!showThemePicker)}
+              style={styles.showMoreThemes}
+            >
+              <Text style={styles.showMoreText}>
+                {showThemePicker ? 'Show Less' : 'See All Themes'}
+              </Text>
+              <Ionicons
+                name={showThemePicker ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={colors.primary}
+              />
+            </Pressable>
+
+            {/* All Themes Dropdown */}
+            {showThemePicker && (
+              <View style={styles.themesDropdown}>
+                <ScrollView style={styles.themesScroll} nestedScrollEnabled>
+                  {/* None Option */}
+                  <Pressable
+                    onPress={() => {
+                      setSelectedTheme(null);
+                      setShowThemePicker(false);
+                    }}
+                    style={[
+                      styles.themeDropdownItem,
+                      !selectedTheme && styles.themeDropdownItemSelected,
+                    ]}
+                  >
+                    <Ionicons name="close-circle-outline" size={20} color={colors.muted} />
+                    <Text style={styles.themeDropdownText}>No Theme (Classic)</Text>
+                  </Pressable>
+
+                  {/* Seasons */}
+                  <Text style={styles.themeCategoryLabel}>Seasons</Text>
+                  {SEASONS.map((theme) => (
+                    <ThemeDropdownItem
+                      key={theme.id}
+                      theme={theme}
+                      isSelected={selectedTheme?.id === theme.id}
+                      onSelect={() => {
+                        setSelectedTheme(theme);
+                        setShowThemePicker(false);
+                      }}
+                    />
+                  ))}
+
+                  {/* Holidays */}
+                  <Text style={styles.themeCategoryLabel}>Holidays</Text>
+                  {HOLIDAYS.map((theme) => (
+                    <ThemeDropdownItem
+                      key={theme.id}
+                      theme={theme}
+                      isSelected={selectedTheme?.id === theme.id}
+                      onSelect={() => {
+                        setSelectedTheme(theme);
+                        setShowThemePicker(false);
+                      }}
+                    />
+                  ))}
+
+                  {/* Events */}
+                  <Text style={styles.themeCategoryLabel}>Special Events</Text>
+                  {EVENTS.map((theme) => (
+                    <ThemeDropdownItem
+                      key={theme.id}
+                      theme={theme}
+                      isSelected={selectedTheme?.id === theme.id}
+                      onSelect={() => {
+                        setSelectedTheme(theme);
+                        setShowThemePicker(false);
+                      }}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Selected Theme Display */}
+            {selectedTheme && (
+              <View style={styles.selectedThemePreview}>
+                <Ionicons name={selectedTheme.icon as any} size={16} color={colors.primary} />
+                <Text style={styles.selectedThemeText}>
+                  Theme: <Text style={styles.selectedThemeName}>{selectedTheme.name}</Text>
+                </Text>
+                <Pressable onPress={() => setSelectedTheme(null)}>
+                  <Ionicons name="close-circle" size={18} color={colors.muted} />
+                </Pressable>
               </View>
             )}
           </View>
@@ -453,6 +604,35 @@ function PricingFeature({ text }: { text: string }) {
       <Ionicons name="checkmark-circle" size={18} color={colors.accentGreen} />
       <Text style={styles.pricingFeatureText}>{text}</Text>
     </View>
+  );
+}
+
+function ThemeDropdownItem({ theme, isSelected, onSelect }: { theme: Theme; isSelected: boolean; onSelect: () => void }) {
+  const inSeason = isThemeInSeason(theme);
+  return (
+    <Pressable
+      onPress={onSelect}
+      style={[
+        styles.themeDropdownItem,
+        isSelected && styles.themeDropdownItemSelected,
+      ]}
+    >
+      <View style={styles.themeDropdownIconWrap}>
+        <Ionicons name={theme.icon as any} size={18} color={isSelected ? colors.primary : colors.muted} />
+        {inSeason && (
+          <View style={styles.miniSeasonBadge}>
+            <Ionicons name="sparkles" size={6} color={colors.accent} />
+          </View>
+        )}
+      </View>
+      <View style={styles.themeDropdownContent}>
+        <Text style={[styles.themeDropdownText, isSelected && styles.themeDropdownTextSelected]}>
+          {theme.name}
+        </Text>
+        {inSeason && <Text style={styles.themeInSeasonLabel}>In Season!</Text>}
+      </View>
+      {isSelected && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+    </Pressable>
   );
 }
 
@@ -1003,5 +1183,162 @@ const styles = StyleSheet.create({
   footerDivider: {
     color: colors.muted,
     fontSize: 12,
+  },
+
+  // Theme Selector Styles
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  freeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  freeBadgeText: {
+    color: colors.accentGreen,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  featuredThemes: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  featuredThemeItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 10,
+    marginHorizontal: 3,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  featuredThemeItemSelected: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  },
+  themeIconContainer: {
+    position: 'relative',
+    marginBottom: 4,
+  },
+  seasonBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderRadius: 6,
+    padding: 2,
+  },
+  featuredThemeName: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  featuredThemeNameSelected: {
+    color: colors.primary,
+  },
+  showMoreThemes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 4,
+  },
+  showMoreText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  themesDropdown: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    marginTop: 8,
+    maxHeight: 300,
+    overflow: 'hidden',
+  },
+  themesScroll: {
+    maxHeight: 300,
+  },
+  themeDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  themeDropdownItemSelected: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  themeDropdownIconWrap: {
+    position: 'relative',
+  },
+  miniSeasonBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    backgroundColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: 4,
+    padding: 1,
+  },
+  themeDropdownContent: {
+    flex: 1,
+  },
+  themeDropdownText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  themeDropdownTextSelected: {
+    color: colors.primary,
+  },
+  themeInSeasonLabel: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  themeCategoryLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 6,
+    backgroundColor: colors.background,
+  },
+  selectedThemePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 10,
+    gap: 8,
+  },
+  selectedThemeText: {
+    flex: 1,
+    color: colors.muted,
+    fontSize: 13,
+  },
+  selectedThemeName: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

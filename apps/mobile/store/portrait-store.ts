@@ -46,15 +46,31 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
         body.deviceFingerprint = await getDeviceFingerprint();
       }
 
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      // Hardcoded to bypass env var caching issues
+      const supabaseUrl = 'https://rmalsvaoomhrgflioiqx.supabase.co';
+      const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtYWxzdmFvb21ocmdmbGlvaXF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NzEyMTcsImV4cCI6MjA4MDU0NzIxN30.pUkhBzVxpHu8Qsr3hO9pYgZ6_E9X-MatS6Y4KHv5XR0';
+
+      console.log('=== DEBUG: Generate Portrait ===');
+      console.log('Supabase URL:', supabaseUrl);
+      console.log('Anon Key exists:', !!supabaseAnonKey);
+      console.log('Request body:', body);
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error(`Missing env vars: URL=${!!supabaseUrl}, Key=${!!supabaseAnonKey}`);
+      }
+
+      const functionUrl = `${supabaseUrl}/functions/v1/generate-portrait`;
+      console.log('Calling:', functionUrl);
+
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/generate-portrait`,
+        functionUrl,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-            apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+            // Use user token if available, otherwise use anon key for auth
+            Authorization: `Bearer ${accessToken || supabaseAnonKey}`,
+            apikey: supabaseAnonKey,
           },
           body: JSON.stringify(body),
         }

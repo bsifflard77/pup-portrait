@@ -242,6 +242,7 @@ export const FEATURES = {
     customBackgrounds: false,
     premiumBreeds: false,
     saveToGallery: true,
+    themes: true, // Seasons, holidays, events - FREE for all!
   },
   PREMIUM: {
     dailyGenerations: null, // unlimited
@@ -254,6 +255,7 @@ export const FEATURES = {
     customBackgrounds: true,
     premiumBreeds: true,
     saveToGallery: true,
+    themes: true, // All themes available
   },
 } as const;
 
@@ -265,4 +267,263 @@ export function canUseAspectRatio(tier: SubscriptionTier, ratioId: AspectRatioId
 export function requiresBrandedSharing(tier: SubscriptionTier): boolean {
   if (tier === 'premium' || tier === 'lifetime') return false;
   return true;
+}
+
+// ============================================
+// SEASONS, HOLIDAYS & EVENTS (Free for all users)
+// ============================================
+
+export type ThemeCategory = 'season' | 'holiday' | 'event';
+
+export interface Theme {
+  id: string;
+  name: string;
+  category: ThemeCategory;
+  icon: string;
+  prompt: string; // AI prompt modifier
+  available: boolean; // Whether currently selectable (for seasonal themes)
+  startMonth?: number; // 1-12, for auto-availability
+  endMonth?: number; // 1-12, for auto-availability
+}
+
+// Seasons - always available but highlighted when in season
+export const SEASONS: Theme[] = [
+  {
+    id: 'spring',
+    name: 'Spring',
+    category: 'season',
+    icon: 'flower-outline',
+    prompt: 'in a beautiful spring setting with cherry blossoms, fresh green grass, and blooming flowers',
+    available: true,
+    startMonth: 3,
+    endMonth: 5,
+  },
+  {
+    id: 'summer',
+    name: 'Summer',
+    category: 'season',
+    icon: 'sunny-outline',
+    prompt: 'in a bright sunny summer setting with blue skies, lush greenery, and warm golden light',
+    available: true,
+    startMonth: 6,
+    endMonth: 8,
+  },
+  {
+    id: 'fall',
+    name: 'Fall',
+    category: 'season',
+    icon: 'leaf-outline',
+    prompt: 'in a cozy autumn setting with colorful falling leaves, orange and red foliage, and warm afternoon light',
+    available: true,
+    startMonth: 9,
+    endMonth: 11,
+  },
+  {
+    id: 'winter',
+    name: 'Winter',
+    category: 'season',
+    icon: 'snow-outline',
+    prompt: 'in a magical winter wonderland with fresh snow, frost-covered trees, and soft winter light',
+    available: true,
+    startMonth: 12,
+    endMonth: 2,
+  },
+];
+
+// Holidays - available around their time
+export const HOLIDAYS: Theme[] = [
+  {
+    id: 'christmas',
+    name: 'Christmas',
+    category: 'holiday',
+    icon: 'gift-outline',
+    prompt: 'in a festive Christmas setting with a decorated tree, twinkling lights, wrapped presents, and holiday decorations',
+    available: true,
+    startMonth: 12,
+    endMonth: 12,
+  },
+  {
+    id: 'halloween',
+    name: 'Halloween',
+    category: 'holiday',
+    icon: 'skull-outline',
+    prompt: 'in a spooky but cute Halloween setting with jack-o-lanterns, autumn leaves, and playful Halloween decorations',
+    available: true,
+    startMonth: 10,
+    endMonth: 10,
+  },
+  {
+    id: 'valentines',
+    name: "Valentine's Day",
+    category: 'holiday',
+    icon: 'heart-outline',
+    prompt: 'in a romantic Valentine\'s Day setting with hearts, roses, and soft pink lighting',
+    available: true,
+    startMonth: 2,
+    endMonth: 2,
+  },
+  {
+    id: 'easter',
+    name: 'Easter',
+    category: 'holiday',
+    icon: 'egg-outline',
+    prompt: 'in a cheerful Easter setting with pastel colors, Easter eggs, spring flowers, and cute bunny decorations',
+    available: true,
+    startMonth: 3,
+    endMonth: 4,
+  },
+  {
+    id: 'independence',
+    name: '4th of July',
+    category: 'holiday',
+    icon: 'star-outline',
+    prompt: 'in a patriotic 4th of July setting with American flags, red white and blue decorations, and festive summer vibes',
+    available: true,
+    startMonth: 7,
+    endMonth: 7,
+  },
+  {
+    id: 'thanksgiving',
+    name: 'Thanksgiving',
+    category: 'holiday',
+    icon: 'restaurant-outline',
+    prompt: 'in a warm Thanksgiving setting with autumn harvest decorations, pumpkins, cornucopia, and cozy fall colors',
+    available: true,
+    startMonth: 11,
+    endMonth: 11,
+  },
+  {
+    id: 'stpatricks',
+    name: "St. Patrick's Day",
+    category: 'holiday',
+    icon: 'leaf-outline',
+    prompt: 'in a lucky St. Patrick\'s Day setting with shamrocks, green decorations, pots of gold, and Irish charm',
+    available: true,
+    startMonth: 3,
+    endMonth: 3,
+  },
+  {
+    id: 'newyear',
+    name: "New Year's",
+    category: 'holiday',
+    icon: 'sparkles-outline',
+    prompt: 'in a glamorous New Year\'s celebration setting with confetti, streamers, champagne glasses, and festive gold decorations',
+    available: true,
+    startMonth: 1,
+    endMonth: 1,
+  },
+];
+
+// Special events - always available
+export const EVENTS: Theme[] = [
+  {
+    id: 'birthday',
+    name: 'Birthday',
+    category: 'event',
+    icon: 'balloon-outline',
+    prompt: 'in a fun birthday party setting with colorful balloons, birthday cake, party hats, and celebration decorations',
+    available: true,
+  },
+  {
+    id: 'graduation',
+    name: 'Graduation',
+    category: 'event',
+    icon: 'school-outline',
+    prompt: 'in a proud graduation setting with a cap and diploma, celebration confetti, and academic decorations',
+    available: true,
+  },
+  {
+    id: 'wedding',
+    name: 'Wedding',
+    category: 'event',
+    icon: 'heart-circle-outline',
+    prompt: 'in an elegant wedding setting with white flowers, romantic lighting, and beautiful wedding decorations',
+    available: true,
+  },
+  {
+    id: 'beach-vacation',
+    name: 'Beach Vacation',
+    category: 'event',
+    icon: 'umbrella-outline',
+    prompt: 'on a tropical beach vacation with palm trees, ocean waves, beach umbrella, and sandy shores',
+    available: true,
+  },
+  {
+    id: 'camping',
+    name: 'Camping',
+    category: 'event',
+    icon: 'bonfire-outline',
+    prompt: 'at a cozy camping scene with a tent, campfire, pine trees, and starry night sky',
+    available: true,
+  },
+  {
+    id: 'sports',
+    name: 'Game Day',
+    category: 'event',
+    icon: 'football-outline',
+    prompt: 'in an exciting game day setting with sports equipment, team spirit decorations, and athletic vibes',
+    available: true,
+  },
+  {
+    id: 'cozy-home',
+    name: 'Cozy Home',
+    category: 'event',
+    icon: 'home-outline',
+    prompt: 'in a cozy home setting with a warm fireplace, soft blankets, and comfortable living room furniture',
+    available: true,
+  },
+  {
+    id: 'adventure',
+    name: 'Adventure',
+    category: 'event',
+    icon: 'compass-outline',
+    prompt: 'on an exciting outdoor adventure with mountains, hiking trails, and beautiful natural scenery',
+    available: true,
+  },
+];
+
+// Combined themes
+export const ALL_THEMES: Theme[] = [...SEASONS, ...HOLIDAYS, ...EVENTS];
+
+// Helper to get current month (1-12)
+function getCurrentMonth(): number {
+  return new Date().getMonth() + 1;
+}
+
+// Check if a theme is "in season" based on current date
+export function isThemeInSeason(theme: Theme): boolean {
+  if (!theme.startMonth || !theme.endMonth) return true; // Events are always available
+
+  const currentMonth = getCurrentMonth();
+
+  // Handle year wrap (e.g., Winter: Dec-Feb)
+  if (theme.startMonth > theme.endMonth) {
+    return currentMonth >= theme.startMonth || currentMonth <= theme.endMonth;
+  }
+
+  return currentMonth >= theme.startMonth && currentMonth <= theme.endMonth;
+}
+
+// Get themes sorted by relevance (in-season first)
+export function getThemesByRelevance(): Theme[] {
+  return [...ALL_THEMES].sort((a, b) => {
+    const aInSeason = isThemeInSeason(a);
+    const bInSeason = isThemeInSeason(b);
+
+    if (aInSeason && !bInSeason) return -1;
+    if (!aInSeason && bInSeason) return 1;
+    return 0;
+  });
+}
+
+// Get featured themes for the current time
+export function getFeaturedThemes(limit: number = 4): Theme[] {
+  return getThemesByRelevance()
+    .filter(t => isThemeInSeason(t))
+    .slice(0, limit);
+}
+
+// Get themes by category
+export function getThemesByCategory(category: ThemeCategory): Theme[] {
+  return ALL_THEMES.filter(t => t.category === category);
 }
