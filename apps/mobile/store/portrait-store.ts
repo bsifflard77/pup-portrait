@@ -47,21 +47,14 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
         body.deviceFingerprint = await getDeviceFingerprint();
       }
 
-      // Hardcoded to bypass env var caching issues
-      const supabaseUrl = 'https://rmalsvaoomhrgflioiqx.supabase.co';
-      const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtYWxzdmFvb21ocmdmbGlvaXF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NzEyMTcsImV4cCI6MjA4MDU0NzIxN30.pUkhBzVxpHu8Qsr3hO9pYgZ6_E9X-MatS6Y4KHv5XR0';
-
-      console.log('=== DEBUG: Generate Portrait ===');
-      console.log('Supabase URL:', supabaseUrl);
-      console.log('Anon Key exists:', !!supabaseAnonKey);
-      console.log('Request body:', body);
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
       if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error(`Missing env vars: URL=${!!supabaseUrl}, Key=${!!supabaseAnonKey}`);
+        throw new Error('Missing Supabase environment variables');
       }
 
       const functionUrl = `${supabaseUrl}/functions/v1/generate-portrait`;
-      console.log('Calling:', functionUrl);
 
       const response = await fetch(
         functionUrl,

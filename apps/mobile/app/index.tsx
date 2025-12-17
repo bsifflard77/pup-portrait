@@ -6,10 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../store/auth-store';
 import { usePortraitStore } from '../store/portrait-store';
+import { useThemeStore } from '../store/theme-store';
 import { hasGuestUsedFreeTrial } from '../lib/guest-tracker';
 import {
   BREEDS,
   FREE_BREEDS,
+  getBreedsForDropdown,
   getRandomBreed,
   ASPECT_RATIOS,
   AspectRatioId,
@@ -21,7 +23,9 @@ import {
   SEASONS,
   HOLIDAYS,
   EVENTS,
+  FREE_THEMES,
   getFeaturedThemes,
+  getFeaturedThemesForTier,
   isThemeInSeason,
 } from '@pup-portrait/shared';
 
@@ -29,29 +33,11 @@ const { width: screenWidth } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const maxWidth = isWeb ? 480 : screenWidth;
 
-// Theme colors
-const colors = {
-  background: '#0f0f1a',
-  backgroundGradientStart: '#1a1a2e',
-  backgroundGradientEnd: '#0f0f1a',
-  card: '#1a1a2e',
-  cardHover: '#252540',
-  primary: '#6366f1',
-  primaryLight: '#818cf8',
-  accent: '#f59e0b',
-  accentGreen: '#10b981',
-  border: '#2a2a3e',
-  borderLight: '#3a3a4e',
-  white: '#ffffff',
-  muted: '#a1a1aa',
-  mutedLight: '#d4d4d8',
-  destructive: '#ef4444',
-};
-
 export default function LandingPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuthStore();
   const { currentPortrait, isGenerating, generatePortrait, error } = usePortraitStore();
+  const { mode: themeMode, colors, toggleTheme } = useThemeStore();
 
   const [selectedBreed, setSelectedBreed] = useState('random');
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioId>('square');
@@ -60,8 +46,11 @@ export default function LandingPage() {
   const [showBreedPicker, setShowBreedPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
 
-  // Get featured themes (in-season ones first)
-  const featuredThemes = getFeaturedThemes(4);
+  // Get featured themes (in-season ones first) - guests only see free themes
+  const featuredThemes = getFeaturedThemesForTier('free', 4);
+
+  // Theme mode indicator
+  const isDark = themeMode === 'dark';
 
   useEffect(() => {
     hasGuestUsedFreeTrial().then(setHasUsedTrial);
@@ -115,7 +104,7 @@ export default function LandingPage() {
 
   if (authLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -124,32 +113,47 @@ export default function LandingPage() {
   const selectedRatio = ASPECT_RATIOS.find(r => r.id === selectedAspectRatio) || ASPECT_RATIOS[0];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.scrollContent}
+    >
       <View style={styles.wrapper}>
+        {/* Theme Toggle */}
+        <Pressable
+          onPress={toggleTheme}
+          style={[styles.themeToggle, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Ionicons
+            name={isDark ? "sunny" : "moon"}
+            size={20}
+            color={colors.primary}
+          />
+        </Pressable>
+
         {/* Hero Section */}
         <View style={styles.hero}>
-          <View style={styles.logoContainer}>
+          <View style={[styles.logoContainer, { backgroundColor: colors.card, borderColor: colors.primary }]}>
             <Ionicons name="paw" size={48} color={colors.primary} />
           </View>
-          <Text style={styles.title}>{APP_NAME}</Text>
-          <Text style={styles.tagline}>{APP_TAGLINE}</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: colors.text }]}>{APP_NAME}</Text>
+          <Text style={[styles.tagline, { color: colors.primary }]}>{APP_TAGLINE}</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
             Generate stunning AI portraits of your dream dog in seconds
           </Text>
         </View>
 
         {/* Main Card */}
-        <View style={styles.mainCard}>
+        <View style={[styles.mainCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {/* Breed Selector */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Choose Your Breed</Text>
+            <Text style={[styles.sectionLabel, { color: colors.mutedLight }]}>Choose Your Breed</Text>
             <Pressable
               onPress={() => setShowBreedPicker(!showBreedPicker)}
-              style={styles.selector}
+              style={[styles.selector, { backgroundColor: colors.background, borderColor: colors.border }]}
             >
               <View style={styles.selectorContent}>
                 <Ionicons name="paw" size={20} color={colors.primary} />
-                <Text style={styles.selectorText}>{getBreedName(selectedBreed)}</Text>
+                <Text style={[styles.selectorText, { color: colors.text }]}>{getBreedName(selectedBreed)}</Text>
               </View>
               <Ionicons
                 name={showBreedPicker ? "chevron-up" : "chevron-down"}
@@ -159,7 +163,7 @@ export default function LandingPage() {
             </Pressable>
 
             {showBreedPicker && (
-              <View style={styles.dropdown}>
+              <View style={[styles.dropdown, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
                   <Pressable
                     onPress={() => {
@@ -168,13 +172,14 @@ export default function LandingPage() {
                     }}
                     style={[
                       styles.dropdownItem,
-                      selectedBreed === 'random' && styles.dropdownItemSelected,
+                      { borderBottomColor: colors.border },
+                      selectedBreed === 'random' && { backgroundColor: `${colors.primary}20` },
                     ]}
                   >
                     <Ionicons name="shuffle" size={18} color={colors.accent} />
                     <View style={styles.dropdownItemContent}>
-                      <Text style={styles.dropdownItemText}>Surprise Me!</Text>
-                      <Text style={styles.dropdownItemDesc}>Random breed selection</Text>
+                      <Text style={[styles.dropdownItemText, { color: colors.text }]}>Surprise Me!</Text>
+                      <Text style={[styles.dropdownItemDesc, { color: colors.muted }]}>Random breed selection</Text>
                     </View>
                   </Pressable>
                   {FREE_BREEDS.map((breed) => (
@@ -186,13 +191,14 @@ export default function LandingPage() {
                       }}
                       style={[
                         styles.dropdownItem,
-                        selectedBreed === breed.id && styles.dropdownItemSelected,
+                        { borderBottomColor: colors.border },
+                        selectedBreed === breed.id && { backgroundColor: `${colors.primary}20` },
                       ]}
                     >
                       <Ionicons name="paw" size={18} color={colors.muted} />
                       <View style={styles.dropdownItemContent}>
-                        <Text style={styles.dropdownItemText}>{breed.name}</Text>
-                        <Text style={styles.dropdownItemDesc}>{breed.description}</Text>
+                        <Text style={[styles.dropdownItemText, { color: colors.text }]}>{breed.name}</Text>
+                        <Text style={[styles.dropdownItemDesc, { color: colors.muted }]}>{breed.description}</Text>
                       </View>
                     </Pressable>
                   ))}
@@ -204,10 +210,10 @@ export default function LandingPage() {
           {/* Theme Selector */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>Add a Theme</Text>
-              <View style={styles.freeBadge}>
+              <Text style={[styles.sectionLabel, { color: colors.mutedLight }]}>Add a Theme</Text>
+              <View style={[styles.freeBadge, { backgroundColor: `${colors.accentGreen}20` }]}>
                 <Ionicons name="gift" size={12} color={colors.accentGreen} />
-                <Text style={styles.freeBadgeText}>FREE</Text>
+                <Text style={[styles.freeBadgeText, { color: colors.accentGreen }]}>FREE</Text>
               </View>
             </View>
 
@@ -222,24 +228,26 @@ export default function LandingPage() {
                     onPress={() => setSelectedTheme(isSelected ? null : theme)}
                     style={[
                       styles.featuredThemeItem,
-                      isSelected && styles.featuredThemeItemSelected,
+                      { backgroundColor: colors.background },
+                      isSelected && { borderColor: colors.primary, backgroundColor: `${colors.primary}15` },
                     ]}
                   >
                     <View style={styles.themeIconContainer}>
                       <Ionicons
                         name={theme.icon as any}
                         size={20}
-                        color={isSelected ? colors.primary : colors.white}
+                        color={isSelected ? colors.primary : colors.text}
                       />
                       {inSeason && (
-                        <View style={styles.seasonBadge}>
+                        <View style={[styles.seasonBadge, { backgroundColor: `${colors.accent}30` }]}>
                           <Ionicons name="sparkles" size={8} color={colors.accent} />
                         </View>
                       )}
                     </View>
                     <Text style={[
                       styles.featuredThemeName,
-                      isSelected && styles.featuredThemeNameSelected,
+                      { color: colors.text },
+                      isSelected && { color: colors.primary },
                     ]}>
                       {theme.name}
                     </Text>
@@ -253,7 +261,7 @@ export default function LandingPage() {
               onPress={() => setShowThemePicker(!showThemePicker)}
               style={styles.showMoreThemes}
             >
-              <Text style={styles.showMoreText}>
+              <Text style={[styles.showMoreText, { color: colors.primary }]}>
                 {showThemePicker ? 'Show Less' : 'See All Themes'}
               </Text>
               <Ionicons
@@ -265,7 +273,7 @@ export default function LandingPage() {
 
             {/* All Themes Dropdown */}
             {showThemePicker && (
-              <View style={styles.themesDropdown}>
+              <View style={[styles.themesDropdown, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <ScrollView style={styles.themesScroll} nestedScrollEnabled>
                   {/* None Option */}
                   <Pressable
@@ -275,20 +283,22 @@ export default function LandingPage() {
                     }}
                     style={[
                       styles.themeDropdownItem,
-                      !selectedTheme && styles.themeDropdownItemSelected,
+                      { borderBottomColor: colors.border },
+                      !selectedTheme && { backgroundColor: `${colors.primary}20` },
                     ]}
                   >
                     <Ionicons name="close-circle-outline" size={20} color={colors.muted} />
-                    <Text style={styles.themeDropdownText}>No Theme (Classic)</Text>
+                    <Text style={[styles.themeDropdownText, { color: colors.text }]}>No Theme (Classic)</Text>
                   </Pressable>
 
                   {/* Seasons */}
-                  <Text style={styles.themeCategoryLabel}>Seasons</Text>
+                  <Text style={[styles.themeCategoryLabel, { color: colors.muted, backgroundColor: colors.background }]}>Seasons</Text>
                   {SEASONS.map((theme) => (
                     <ThemeDropdownItem
                       key={theme.id}
                       theme={theme}
                       isSelected={selectedTheme?.id === theme.id}
+                      colors={colors}
                       onSelect={() => {
                         setSelectedTheme(theme);
                         setShowThemePicker(false);
@@ -297,12 +307,13 @@ export default function LandingPage() {
                   ))}
 
                   {/* Holidays */}
-                  <Text style={styles.themeCategoryLabel}>Holidays</Text>
+                  <Text style={[styles.themeCategoryLabel, { color: colors.muted, backgroundColor: colors.background }]}>Holidays</Text>
                   {HOLIDAYS.map((theme) => (
                     <ThemeDropdownItem
                       key={theme.id}
                       theme={theme}
                       isSelected={selectedTheme?.id === theme.id}
+                      colors={colors}
                       onSelect={() => {
                         setSelectedTheme(theme);
                         setShowThemePicker(false);
@@ -310,15 +321,24 @@ export default function LandingPage() {
                     />
                   ))}
 
-                  {/* Events */}
-                  <Text style={styles.themeCategoryLabel}>Special Events</Text>
+                  {/* Events (Premium) */}
+                  <View style={styles.themeCategoryHeader}>
+                    <Text style={[styles.themeCategoryLabel, { color: colors.muted, backgroundColor: colors.background }]}>Special Events</Text>
+                    <View style={[styles.proBadgeSmall, { backgroundColor: `${colors.accent}20` }]}>
+                      <Ionicons name="star" size={10} color={colors.accent} />
+                      <Text style={[styles.proBadgeSmallText, { color: colors.accent }]}>PRO</Text>
+                    </View>
+                  </View>
                   {EVENTS.map((theme) => (
                     <ThemeDropdownItem
                       key={theme.id}
                       theme={theme}
                       isSelected={selectedTheme?.id === theme.id}
+                      colors={colors}
+                      isLocked={true}
                       onSelect={() => {
-                        setSelectedTheme(theme);
+                        // Premium themes require signup - redirect to signup
+                        router.push('/(auth)/signup');
                         setShowThemePicker(false);
                       }}
                     />
@@ -329,10 +349,10 @@ export default function LandingPage() {
 
             {/* Selected Theme Display */}
             {selectedTheme && (
-              <View style={styles.selectedThemePreview}>
+              <View style={[styles.selectedThemePreview, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]}>
                 <Ionicons name={selectedTheme.icon as any} size={16} color={colors.primary} />
-                <Text style={styles.selectedThemeText}>
-                  Theme: <Text style={styles.selectedThemeName}>{selectedTheme.name}</Text>
+                <Text style={[styles.selectedThemeText, { color: colors.muted }]}>
+                  Theme: <Text style={[styles.selectedThemeName, { color: colors.primary }]}>{selectedTheme.name}</Text>
                 </Text>
                 <Pressable onPress={() => setSelectedTheme(null)}>
                   <Ionicons name="close-circle" size={18} color={colors.muted} />
@@ -343,7 +363,7 @@ export default function LandingPage() {
 
           {/* Aspect Ratio Selector */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Choose Size</Text>
+            <Text style={[styles.sectionLabel, { color: colors.mutedLight }]}>Choose Size</Text>
             <View style={styles.aspectRatioGrid}>
               {ASPECT_RATIOS.map((ratio) => {
                 const isSelected = selectedAspectRatio === ratio.id;
@@ -360,7 +380,8 @@ export default function LandingPage() {
                     }}
                     style={[
                       styles.aspectRatioItem,
-                      isSelected && styles.aspectRatioItemSelected,
+                      { backgroundColor: colors.background },
+                      isSelected && { borderColor: colors.primary, backgroundColor: `${colors.primary}15` },
                       isLocked && styles.aspectRatioItemLocked,
                     ]}
                   >
@@ -368,22 +389,23 @@ export default function LandingPage() {
                       <Ionicons
                         name={ratio.icon as any}
                         size={24}
-                        color={isSelected ? colors.primary : isLocked ? colors.muted : colors.white}
+                        color={isSelected ? colors.primary : isLocked ? colors.muted : colors.text}
                       />
                       {isLocked && (
-                        <View style={styles.lockBadge}>
+                        <View style={[styles.lockBadge, { backgroundColor: colors.accent }]}>
                           <Ionicons name="lock-closed" size={10} color={colors.white} />
                         </View>
                       )}
                     </View>
                     <Text style={[
                       styles.aspectRatioName,
-                      isSelected && styles.aspectRatioNameSelected,
-                      isLocked && styles.aspectRatioNameLocked,
+                      { color: colors.text },
+                      isSelected && { color: colors.primary },
+                      isLocked && { color: colors.muted },
                     ]}>
                       {ratio.name}
                     </Text>
-                    <Text style={styles.aspectRatioDesc}>{ratio.ratio}</Text>
+                    <Text style={[styles.aspectRatioDesc, { color: colors.muted }]}>{ratio.ratio}</Text>
                   </Pressable>
                 );
               })}
@@ -392,14 +414,14 @@ export default function LandingPage() {
 
           {/* Portrait Display */}
           <View style={styles.portraitContainer}>
-            <View style={[styles.portraitCard, getAspectRatioStyle(selectedRatio)]}>
+            <View style={[styles.portraitCard, { backgroundColor: colors.background, borderColor: colors.border }, getAspectRatioStyle(selectedRatio)]}>
               {isGenerating ? (
                 <View style={styles.portraitPlaceholder}>
                   <View style={styles.generatingAnimation}>
                     <ActivityIndicator size="large" color={colors.primary} />
                   </View>
-                  <Text style={styles.generatingText}>Creating your portrait...</Text>
-                  <Text style={styles.generatingSubtext}>This takes about 10 seconds</Text>
+                  <Text style={[styles.generatingText, { color: colors.text }]}>Creating your portrait...</Text>
+                  <Text style={[styles.generatingSubtext, { color: colors.muted }]}>This takes about 10 seconds</Text>
                 </View>
               ) : currentPortrait ? (
                 <View style={styles.portraitImageContainer}>
@@ -408,23 +430,26 @@ export default function LandingPage() {
                     style={styles.portraitImage}
                     contentFit="cover"
                   />
-                  {/* Watermark */}
+                  {/* Watermark with branding (for free/guest users) */}
                   <View style={styles.watermark}>
-                    <Ionicons name="paw" size={12} color="rgba(255,255,255,0.8)" />
-                    <Text style={styles.watermarkText}>{SHARE_BRANDING.watermarkText}</Text>
+                    <Ionicons name="paw" size={12} color="rgba(255,255,255,0.9)" />
+                    <View style={styles.watermarkTextContainer}>
+                      <Text style={styles.watermarkText}>{SHARE_BRANDING.watermarkText}</Text>
+                      <Text style={styles.watermarkUrl}>{SHARE_BRANDING.watermarkUrl}</Text>
+                    </View>
                   </View>
                   {/* Breed Badge */}
-                  <View style={styles.breedBadge}>
-                    <Text style={styles.breedBadgeText}>{currentPortrait.breed}</Text>
+                  <View style={[styles.breedBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.breedBadgeText, { color: colors.white }]}>{currentPortrait.breed}</Text>
                   </View>
                 </View>
               ) : (
                 <View style={styles.portraitPlaceholder}>
-                  <View style={styles.placeholderIcon}>
+                  <View style={[styles.placeholderIcon, { backgroundColor: `${colors.primary}20` }]}>
                     <Ionicons name="camera" size={48} color={colors.primary} />
                   </View>
-                  <Text style={styles.placeholderTitle}>Your Portrait Here</Text>
-                  <Text style={styles.placeholderText}>
+                  <Text style={[styles.placeholderTitle, { color: colors.text }]}>Your Portrait Here</Text>
+                  <Text style={[styles.placeholderText, { color: colors.muted }]}>
                     Select a breed and tap Generate
                   </Text>
                 </View>
@@ -462,24 +487,24 @@ export default function LandingPage() {
           {!hasUsedTrial && (
             <View style={styles.freeTrialBadge}>
               <Ionicons name="gift" size={16} color={colors.accentGreen} />
-              <Text style={styles.freeTrialText}>First portrait is FREE!</Text>
+              <Text style={[styles.freeTrialText, { color: colors.accentGreen }]}>First portrait is FREE!</Text>
             </View>
           )}
 
           {/* Error Display */}
           {error && (
-            <View style={styles.errorBox}>
+            <View style={[styles.errorBox, { borderColor: colors.destructive }]}>
               <Ionicons name="alert-circle" size={20} color={colors.destructive} />
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
             </View>
           )}
         </View>
 
         {/* Social Share Section (after portrait generated) */}
         {currentPortrait && (
-          <View style={styles.shareCard}>
-            <Text style={styles.shareTitle}>Share Your Creation</Text>
-            <Text style={styles.shareSubtitle}>Show off your adorable pup!</Text>
+          <View style={[styles.shareCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.shareTitle, { color: colors.text }]}>Share Your Creation</Text>
+            <Text style={[styles.shareSubtitle, { color: colors.muted }]}>Show off your adorable pup!</Text>
 
             <View style={styles.socialButtons}>
               {SOCIAL_PLATFORMS.filter(p => p.shareUrl('', '') !== '').map((platform) => (
@@ -495,22 +520,22 @@ export default function LandingPage() {
 
             <View style={styles.brandingNote}>
               <Ionicons name="information-circle" size={16} color={colors.muted} />
-              <Text style={styles.brandingNoteText}>
+              <Text style={[styles.brandingNoteText, { color: colors.muted }]}>
                 Free shares include "Created with Pup Portrait"
               </Text>
             </View>
 
             {/* Signup prompt after share */}
-            <View style={styles.upgradePrompt}>
-              <Text style={styles.upgradeTitle}>Want More?</Text>
-              <Text style={styles.upgradeText}>
-                Sign up for 3 free portraits daily, HD downloads, and more sizes!
+            <View style={[styles.upgradePrompt, { backgroundColor: colors.background }]}>
+              <Text style={[styles.upgradeTitle, { color: colors.text }]}>Want More?</Text>
+              <Text style={[styles.upgradeText, { color: colors.muted }]}>
+                Sign up for 5 free portraits weekly, save to gallery, and unlock premium features!
               </Text>
               <Pressable
                 onPress={() => router.push('/(auth)/signup')}
-                style={styles.upgradeButton}
+                style={[styles.upgradeButton, { backgroundColor: colors.primary }]}
               >
-                <Text style={styles.upgradeButtonText}>Create Free Account</Text>
+                <Text style={[styles.upgradeButtonText, { color: colors.white }]}>Create Free Account</Text>
               </Pressable>
             </View>
           </View>
@@ -518,69 +543,53 @@ export default function LandingPage() {
 
         {/* Features Section */}
         <View style={styles.featuresSection}>
-          <Text style={styles.featuresTitle}>Why Pup Portrait?</Text>
+          <Text style={[styles.featuresTitle, { color: colors.text }]}>Why Pup Portrait?</Text>
 
           <View style={styles.featuresGrid}>
-            <FeatureCard
-              icon="flash"
-              title="Instant Results"
-              description="AI generates your portrait in seconds"
-            />
-            <FeatureCard
-              icon="color-palette"
-              title="Custom Styles"
-              description="Choose from multiple art styles"
-            />
-            <FeatureCard
-              icon="share-social"
-              title="Easy Sharing"
-              description="Share directly to social media"
-            />
-            <FeatureCard
-              icon="heart"
-              title="25+ Breeds"
-              description="From Golden Retrievers to Huskies"
-            />
+            <FeatureCard icon="flash" title="Instant Results" description="AI generates your portrait in seconds" colors={colors} />
+            <FeatureCard icon="color-palette" title="Custom Styles" description="Choose from multiple art styles" colors={colors} />
+            <FeatureCard icon="share-social" title="Easy Sharing" description="Share directly to social media" colors={colors} />
+            <FeatureCard icon="heart" title="100+ Breeds" description="From Golden Retrievers to rare breeds" colors={colors} />
           </View>
         </View>
 
         {/* Pricing Teaser */}
-        <View style={styles.pricingTeaser}>
-          <Text style={styles.pricingTitle}>Go Premium</Text>
-          <Text style={styles.pricingSubtitle}>Unlock the full experience</Text>
+        <View style={[styles.pricingTeaser, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+          <Text style={[styles.pricingTitle, { color: colors.text }]}>Go Premium</Text>
+          <Text style={[styles.pricingSubtitle, { color: colors.muted }]}>Unlock the full experience</Text>
 
           <View style={styles.pricingFeatures}>
-            <PricingFeature text="Unlimited portraits" />
-            <PricingFeature text="All aspect ratios" />
-            <PricingFeature text="HD 1024px downloads" />
-            <PricingFeature text="No watermarks" />
-            <PricingFeature text="Premium breeds" />
-            <PricingFeature text="Custom colors & backgrounds" />
+            <PricingFeature text="15 portraits per day" colors={colors} />
+            <PricingFeature text="100+ breeds with search" colors={colors} />
+            <PricingFeature text="All themes including Events" colors={colors} />
+            <PricingFeature text="All aspect ratios" colors={colors} />
+            <PricingFeature text="HD 1024px, no watermarks" colors={colors} />
+            <PricingFeature text="Custom colors & backgrounds" colors={colors} />
           </View>
 
           <View style={styles.pricingOptions}>
-            <Text style={styles.pricingFrom}>Starting at</Text>
-            <Text style={styles.pricingAmount}>$7.99<Text style={styles.pricingPeriod}>/mo</Text></Text>
+            <Text style={[styles.pricingFrom, { color: colors.muted }]}>Starting at</Text>
+            <Text style={[styles.pricingAmount, { color: colors.text }]}>$7.99<Text style={[styles.pricingPeriod, { color: colors.muted }]}>/mo</Text></Text>
           </View>
 
           <Pressable
             onPress={() => router.push('/(auth)/signup')}
-            style={styles.pricingButton}
+            style={[styles.pricingButton, { backgroundColor: colors.primary }]}
           >
-            <Text style={styles.pricingButtonText}>View Plans</Text>
+            <Text style={[styles.pricingButtonText, { color: colors.white }]}>View Plans</Text>
           </Pressable>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>© 2024 Pup Portrait. All rights reserved.</Text>
+          <Text style={[styles.footerText, { color: colors.muted }]}>© 2024 Pup Portrait. All rights reserved.</Text>
           <View style={styles.footerLinks}>
             <Pressable>
-              <Text style={styles.footerLink}>Privacy</Text>
+              <Text style={[styles.footerLink, { color: colors.muted }]}>Privacy</Text>
             </Pressable>
-            <Text style={styles.footerDivider}>•</Text>
+            <Text style={[styles.footerDivider, { color: colors.muted }]}>•</Text>
             <Pressable>
-              <Text style={styles.footerLink}>Terms</Text>
+              <Text style={[styles.footerLink, { color: colors.muted }]}>Terms</Text>
             </Pressable>
           </View>
         </View>
@@ -589,52 +598,67 @@ export default function LandingPage() {
   );
 }
 
-function FeatureCard({ icon, title, description }: { icon: string; title: string; description: string }) {
+function FeatureCard({ icon, title, description, colors }: { icon: string; title: string; description: string; colors: any }) {
   return (
-    <View style={styles.featureCard}>
-      <View style={styles.featureIconContainer}>
+    <View style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.featureIconContainer, { backgroundColor: `${colors.primary}20` }]}>
         <Ionicons name={icon as any} size={24} color={colors.primary} />
       </View>
-      <Text style={styles.featureTitle}>{title}</Text>
-      <Text style={styles.featureDesc}>{description}</Text>
+      <Text style={[styles.featureTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.featureDesc, { color: colors.muted }]}>{description}</Text>
     </View>
   );
 }
 
-function PricingFeature({ text }: { text: string }) {
+function PricingFeature({ text, colors }: { text: string; colors: any }) {
   return (
     <View style={styles.pricingFeature}>
       <Ionicons name="checkmark-circle" size={18} color={colors.accentGreen} />
-      <Text style={styles.pricingFeatureText}>{text}</Text>
+      <Text style={[styles.pricingFeatureText, { color: colors.mutedLight }]}>{text}</Text>
     </View>
   );
 }
 
-function ThemeDropdownItem({ theme, isSelected, onSelect }: { theme: Theme; isSelected: boolean; onSelect: () => void }) {
+function ThemeDropdownItem({ theme, isSelected, colors, onSelect, isLocked }: { theme: Theme; isSelected: boolean; colors: any; onSelect: () => void; isLocked?: boolean }) {
   const inSeason = isThemeInSeason(theme);
   return (
     <Pressable
       onPress={onSelect}
       style={[
         styles.themeDropdownItem,
-        isSelected && styles.themeDropdownItemSelected,
+        { borderBottomColor: colors.border },
+        isSelected && { backgroundColor: `${colors.primary}20` },
+        isLocked && styles.themeDropdownItemLocked,
       ]}
     >
       <View style={styles.themeDropdownIconWrap}>
-        <Ionicons name={theme.icon as any} size={18} color={isSelected ? colors.primary : colors.muted} />
-        {inSeason && (
-          <View style={styles.miniSeasonBadge}>
+        <Ionicons name={theme.icon as any} size={18} color={isLocked ? colors.muted : (isSelected ? colors.primary : colors.muted)} />
+        {inSeason && !isLocked && (
+          <View style={[styles.miniSeasonBadge, { backgroundColor: `${colors.accent}40` }]}>
             <Ionicons name="sparkles" size={6} color={colors.accent} />
+          </View>
+        )}
+        {isLocked && (
+          <View style={[styles.miniLockBadge, { backgroundColor: colors.accent }]}>
+            <Ionicons name="lock-closed" size={6} color={colors.white} />
           </View>
         )}
       </View>
       <View style={styles.themeDropdownContent}>
-        <Text style={[styles.themeDropdownText, isSelected && styles.themeDropdownTextSelected]}>
-          {theme.name}
-        </Text>
-        {inSeason && <Text style={styles.themeInSeasonLabel}>In Season!</Text>}
+        <View style={styles.themeDropdownNameRow}>
+          <Text style={[styles.themeDropdownText, { color: isLocked ? colors.muted : colors.text }, isSelected && { color: colors.primary }]}>
+            {theme.name}
+          </Text>
+          {isLocked && (
+            <View style={[styles.premiumBadge, { backgroundColor: `${colors.accent}20` }]}>
+              <Ionicons name="star" size={10} color={colors.accent} />
+              <Text style={[styles.premiumBadgeText, { color: colors.accent }]}>PRO</Text>
+            </View>
+          )}
+        </View>
+        {inSeason && !isLocked && <Text style={[styles.themeInSeasonLabel, { color: colors.accent }]}>In Season!</Text>}
       </View>
-      {isSelected && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+      {isSelected && !isLocked && <Ionicons name="checkmark" size={18} color={colors.primary} />}
     </Pressable>
   );
 }
@@ -642,7 +666,6 @@ function ThemeDropdownItem({ theme, isSelected, onSelect }: { theme: Theme; isSe
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -655,9 +678,20 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'web' ? 24 : 60,
     paddingBottom: 40,
   },
+  themeToggle: {
+    position: 'absolute',
+    top: Platform.OS === 'web' ? 24 : 60,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -671,40 +705,33 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: colors.primary,
   },
   title: {
     fontSize: 32,
     fontWeight: '800',
-    color: colors.white,
     marginBottom: 4,
   },
   tagline: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.muted,
     textAlign: 'center',
     maxWidth: 280,
   },
 
   // Main Card
   mainCard: {
-    backgroundColor: colors.card,
     borderRadius: 24,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: colors.border,
   },
 
   // Sections
@@ -714,7 +741,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.mutedLight,
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -722,9 +748,7 @@ const styles = StyleSheet.create({
 
   // Selector
   selector: {
-    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
     flexDirection: 'row',
@@ -737,16 +761,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   selectorText: {
-    color: colors.white,
     fontSize: 16,
     fontWeight: '500',
   },
 
   // Dropdown
   dropdown: {
-    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 12,
     marginTop: 8,
     maxHeight: 240,
@@ -761,21 +782,15 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  dropdownItemSelected: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
   },
   dropdownItemContent: {
     flex: 1,
   },
   dropdownItemText: {
-    color: colors.white,
     fontSize: 15,
     fontWeight: '500',
   },
   dropdownItemDesc: {
-    color: colors.muted,
     fontSize: 12,
     marginTop: 2,
   },
@@ -790,14 +805,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: colors.background,
     marginHorizontal: 4,
     borderWidth: 2,
     borderColor: 'transparent',
-  },
-  aspectRatioItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
   },
   aspectRatioItemLocked: {
     opacity: 0.6,
@@ -810,23 +820,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: colors.accent,
     borderRadius: 8,
     padding: 2,
   },
   aspectRatioName: {
-    color: colors.white,
     fontSize: 12,
     fontWeight: '600',
   },
-  aspectRatioNameSelected: {
-    color: colors.primary,
-  },
-  aspectRatioNameLocked: {
-    color: colors.muted,
-  },
   aspectRatioDesc: {
-    color: colors.muted,
     fontSize: 10,
   },
 
@@ -836,11 +837,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   portraitCard: {
-    backgroundColor: colors.background,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: colors.border,
   },
   portraitPlaceholder: {
     flex: 1,
@@ -852,19 +851,16 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   placeholderTitle: {
-    color: colors.white,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
   },
   placeholderText: {
-    color: colors.muted,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -872,13 +868,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   generatingText: {
-    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   generatingSubtext: {
-    color: colors.muted,
     fontSize: 12,
   },
   portraitImageContainer: {
@@ -900,22 +894,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 6,
   },
+  watermarkTextContainer: {
+    flexDirection: 'column',
+  },
   watermarkText: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
+  },
+  watermarkUrl: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 9,
+    fontWeight: '600',
   },
   breedBadge: {
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   breedBadgeText: {
-    color: colors.white,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   generateButtonText: {
-    color: colors.white,
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -954,7 +954,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   freeTrialText: {
-    color: colors.accentGreen,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -965,36 +964,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: colors.destructive,
     borderRadius: 12,
     padding: 12,
     gap: 10,
     marginTop: 12,
   },
   errorText: {
-    color: colors.destructive,
     fontSize: 14,
     flex: 1,
   },
 
   // Share Card
   shareCard: {
-    backgroundColor: colors.card,
     borderRadius: 24,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: 'center',
   },
   shareTitle: {
-    color: colors.white,
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 4,
   },
   shareSubtitle: {
-    color: colors.muted,
     fontSize: 14,
     marginBottom: 16,
   },
@@ -1017,36 +1010,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   brandingNoteText: {
-    color: colors.muted,
     fontSize: 12,
   },
   upgradePrompt: {
-    backgroundColor: colors.background,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     width: '100%',
   },
   upgradeTitle: {
-    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 6,
   },
   upgradeText: {
-    color: colors.muted,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 12,
   },
   upgradeButton: {
-    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 20,
   },
   upgradeButtonText: {
-    color: colors.white,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1056,7 +1043,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   featuresTitle: {
-    color: colors.white,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
@@ -1070,53 +1056,44 @@ const styles = StyleSheet.create({
   featureCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
   },
   featureIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   featureTitle: {
-    color: colors.white,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
     textAlign: 'center',
   },
   featureDesc: {
-    color: colors.muted,
     fontSize: 12,
     textAlign: 'center',
   },
 
   // Pricing
   pricingTeaser: {
-    backgroundColor: colors.card,
     borderRadius: 24,
     padding: 24,
     marginBottom: 24,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.primary,
   },
   pricingTitle: {
-    color: colors.white,
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 4,
   },
   pricingSubtitle: {
-    color: colors.muted,
     fontSize: 14,
     marginBottom: 20,
   },
@@ -1131,7 +1108,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pricingFeatureText: {
-    color: colors.mutedLight,
     fontSize: 14,
   },
   pricingOptions: {
@@ -1139,27 +1115,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pricingFrom: {
-    color: colors.muted,
     fontSize: 12,
   },
   pricingAmount: {
-    color: colors.white,
     fontSize: 36,
     fontWeight: '800',
   },
   pricingPeriod: {
     fontSize: 16,
     fontWeight: '400',
-    color: colors.muted,
   },
   pricingButton: {
-    backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 24,
   },
   pricingButtonText: {
-    color: colors.white,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1170,7 +1141,6 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   footerText: {
-    color: colors.muted,
     fontSize: 12,
     marginBottom: 8,
   },
@@ -1180,11 +1150,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   footerLink: {
-    color: colors.muted,
     fontSize: 12,
   },
   footerDivider: {
-    color: colors.muted,
     fontSize: 12,
   },
 
@@ -1198,14 +1166,12 @@ const styles = StyleSheet.create({
   freeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
   },
   freeBadgeText: {
-    color: colors.accentGreen,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -1220,13 +1186,8 @@ const styles = StyleSheet.create({
     padding: 10,
     marginHorizontal: 3,
     borderRadius: 12,
-    backgroundColor: colors.background,
     borderWidth: 2,
     borderColor: 'transparent',
-  },
-  featuredThemeItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
   },
   themeIconContainer: {
     position: 'relative',
@@ -1236,18 +1197,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -6,
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
     borderRadius: 6,
     padding: 2,
   },
   featuredThemeName: {
-    color: colors.white,
     fontSize: 11,
     fontWeight: '500',
     textAlign: 'center',
-  },
-  featuredThemeNameSelected: {
-    color: colors.primary,
   },
   showMoreThemes: {
     flexDirection: 'row',
@@ -1257,14 +1213,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   showMoreText: {
-    color: colors.primary,
     fontSize: 13,
     fontWeight: '500',
   },
   themesDropdown: {
-    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 12,
     marginTop: 8,
     maxHeight: 300,
@@ -1279,10 +1232,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  themeDropdownItemSelected: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
   },
   themeDropdownIconWrap: {
     position: 'relative',
@@ -1291,7 +1240,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     right: -4,
-    backgroundColor: 'rgba(245, 158, 11, 0.3)',
     borderRadius: 4,
     padding: 1,
   },
@@ -1299,21 +1247,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   themeDropdownText: {
-    color: colors.white,
     fontSize: 14,
     fontWeight: '500',
   },
-  themeDropdownTextSelected: {
-    color: colors.primary,
-  },
   themeInSeasonLabel: {
-    color: colors.accent,
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,
   },
+  themeDropdownNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  themeDropdownItemLocked: {
+    opacity: 0.7,
+  },
+  miniLockBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    borderRadius: 4,
+    padding: 2,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 3,
+  },
+  premiumBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  themeCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 12,
+  },
   themeCategoryLabel: {
-    color: colors.muted,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1321,14 +1296,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 12,
     paddingBottom: 6,
-    backgroundColor: colors.background,
+  },
+  proBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 3,
+    marginTop: 6,
+  },
+  proBadgeSmallText: {
+    fontSize: 9,
+    fontWeight: '700',
   },
   selectedThemePreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
     borderWidth: 1,
-    borderColor: colors.primary,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1337,11 +1322,9 @@ const styles = StyleSheet.create({
   },
   selectedThemeText: {
     flex: 1,
-    color: colors.muted,
     fontSize: 13,
   },
   selectedThemeName: {
-    color: colors.primary,
     fontWeight: '600',
   },
 });

@@ -1,14 +1,28 @@
 # Progress Tracker
 **Project:** Pup Portrait
-**Last Updated:** 2025-12-15
-**Current Focus:** Theme Support Complete - Portrait Generation Fully Working
+**Last Updated:** 2025-12-17
+**Current Focus:** Implementing Updated Tier System
 
 ---
 
 ## Active Task
-- **Task:** Code cleanup and full user flow testing
-- **Feature:** Polish & Testing
-- **Started:** 2025-12-15
+- **Task:** Deploy tier system and test full user flow
+- **Feature:** Tier System Overhaul
+- **Started:** 2025-12-17
+- **Status:** ✅ Code complete - Ready for deployment & testing
+
+### Implementation Completed:
+- ✅ breeds.ts: Expanded to 100 breeds (15 free, 85 premium) with search
+- ✅ pricing.ts: New limits (Guest: 1 total, Free: 5/week, Paid: 15/day)
+- ✅ pricing.ts: Themes marked with isPremium (Events=paid, Seasons+Holidays=free)
+- ✅ index.tsx: UI updated with PRO badges, lock icons, branded watermarks
+- ✅ Edge Function: Backend limit enforcement (weekly for free, daily for paid)
+- ✅ Migration 00002: Added weekly_generations_used, weekly_reset_at columns
+
+### Deployment Steps Required:
+1. Run migration `00002_add_weekly_limits.sql` in Supabase SQL Editor
+2. Redeploy Edge Function via Supabase Dashboard (copy from supabase/functions/generate-portrait/index.ts)
+3. Test full user flow: guest → signup → generate → hit limits → upgrade
 
 ---
 
@@ -85,6 +99,138 @@
      - Yearly: $59.99/yr (price_1Sb7AXBxllKMUxPg4lODa6mb)
      - Lifetime: $79.99 unlimited (price_1Sb7AXBxllKMUxPgxgEQQYzQ)
    - Updated pricing.ts to reflect $79.99 lifetime (unlimited)
+
+### 2025-12-17
+
+ **10:00** - Full Dynamic Theming Implemented
+   - Refactored index.tsx to use inline styles with `colors` from useThemeStore()
+   - All color-dependent styles now dynamic (background, text, borders, etc.)
+   - Light theme default with warm coral/cream palette
+   - Dark theme toggle working with purple/indigo palette
+   - Updated light theme colors for more vibrancy:
+     - Primary: #E05A70 (richer coral)
+     - Borders: #FFD6CC (peachy, more visible)
+     - Text: #1F1F2E (darker for contrast)
+
+ **11:00** - Tier System Planning Session
+   - Analyzed Google Gemini pricing: $0.039/image, FREE tier 1,500/day (45k/month)
+   - Discussed cost implications at scale
+   - Finalized new tier structure:
+
+   | Feature | Guest | Free Account | Paid |
+   |---------|-------|--------------|------|
+   | Portraits | 1 total | 5/week | 15/day |
+   | Breeds | 15 dropdown | 15 dropdown | 100 + search |
+   | Themes | Seasons+Holidays | Seasons+Holidays | All themes |
+   | Aspect Ratios | Square | Square | All |
+   | Social Sharing | Yes (branded) | Yes (branded) | Yes (clean) |
+   | Watermark | Yes + URL | Yes + URL | No |
+   | Save to Gallery | No | Yes | Yes |
+
+   - Key decisions:
+     - Start conservative with 15/day cap (easier to raise than lower)
+     - Events themes (Birthday, Graduation, etc.) = paid only
+     - Seasons + Holidays = free for all
+     - Type-to-search breeds = paid feature
+     - Terms: "Unlimited" = 15/day, no automation
+     - **Social sharing as marketing tool:**
+       - Free/Guest: Watermark includes "Created with Pup Portrait" + URL
+       - Free/Guest: Share text auto-includes link to pupportrait.com
+       - Premium: Clean images, optional branding
+       - Future: Add QR code to watermark for easy app download
+
+ **12:00** - Tier System Implementation (Phase 1: Shared Package)
+   - Updated `packages/shared/src/breeds.ts`:
+     - Expanded from 25 to 100 dog breeds
+     - 15 free breeds (most popular) + 85 premium breeds
+     - Added `searchBreeds()` function for type-to-search
+     - Added `getBreedsForDropdown()` helper
+     - Added `ALL_BREEDS_SORTED` for premium view
+
+   - Updated `packages/shared/src/pricing.ts`:
+     - Added GUEST tier config (1 total portrait)
+     - Changed FREE from dailyLimit to weeklyLimit (5/week)
+     - Changed PREMIUM dailyLimit from unlimited to 15/day
+     - Added `isPremium` flag to Theme interface
+     - Marked all SEASONS and HOLIDAYS as `isPremium: false`
+     - Marked all EVENTS as `isPremium: true`
+     - Added helper functions:
+       - `canUseTheme(tier, theme)`
+       - `getAvailableThemes(tier)`
+       - `getFeaturedThemesForTier(tier, limit)`
+       - `getUsagePeriodLabel(tier, isGuest)`
+     - Updated `canGenerate()` and `getRemainingGenerations()` signatures
+     - Added FREE_THEMES and PREMIUM_THEMES exports
+
+ **13:00** - Tier System Implementation (Phase 2: UI Updates)
+   - Updated `apps/mobile/app/index.tsx`:
+     - Events themes now show PRO badge and lock icon
+     - Clicking locked themes redirects to signup
+     - Featured themes filtered by tier (guests only see free)
+     - Updated "25+ Breeds" to "100+ Breeds" in features
+     - Updated upgrade prompt text for new limits
+     - Updated pricing features list to reflect new tier benefits
+     - Added new styles for premium badges and locks
+
+ **14:00** - Tier System Implementation (Phase 3: Backend/Edge Function)
+   - Updated `supabase/functions/generate-portrait/index.ts`:
+     - Added LIMITS config object with tier-specific limits
+     - FREE tier: 5/week with weekly reset (Monday)
+     - PREMIUM/LIFETIME tier: 15/day with daily reset
+     - Guest: 1 total portrait ever (unchanged)
+     - Added `getStartOfWeek()` and `getStartOfDay()` helpers
+     - Response now includes `limit`, `usagePeriod`, `remainingGenerations`
+     - Updated error messages to reflect new limits
+
+   - Created new migration `00002_add_weekly_limits.sql`:
+     - Added `weekly_generations_used` column to profiles
+     - Added `weekly_reset_at` column to profiles
+     - Created `increment_total_generations()` function
+     - Created `reset_generation_counters()` function
+     - Added indexes for reset queries
+
+   - Updated watermark in UI to include URL (pupportrait.com)
+   - Updated SHARE_BRANDING with watermarkUrl and qrCodeUrl
+
+---
+
+### 2025-12-16
+
+ **14:00** - Code Cleanup Completed
+   - Removed hardcoded Supabase credentials from supabase.ts and portrait-store.ts
+   - Now using process.env.EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
+   - Removed all debug console.log statements from portrait-store.ts
+   - Installed @react-native-async-storage/async-storage for theme persistence
+
+ **15:00** - Light/Dark Theme System Implementation
+   - Created apps/mobile/store/theme-store.ts with Zustand
+   - Defined two complete color palettes:
+     - Light theme: Warm, feminine palette (coral #E8788A primary, cream #FFF8F5 background)
+     - Dark theme: Original purple/indigo scheme (#6366f1 primary, #0f0f1a background)
+   - Added theme toggle button (sun/moon icon) in top-right corner of index.tsx
+   - ThemeColors interface with 17 color properties for comprehensive theming
+
+ **15:30 - 20:00** - Debugging Blank Screen Issues
+   - **Problem 1:** Light theme colors with white text = invisible on light background
+   - **Problem 2:** Zustand persist middleware with Platform.OS checks caused SSR issues
+   - **Problem 3:** AsyncStorage + createJSONStorage imports breaking web bundling
+   - **Attempted fixes:**
+     - Added window/localStorage safety checks
+     - Changed Supabase client to use fallback empty strings instead of `!` assertions
+     - Multiple Expo server restarts on various ports (8100, 8108, 8110, 8111, 8112, 8115, 8120)
+   - **Solution:**
+     - Simplified theme-store.ts to basic Zustand (removed all persistence middleware)
+     - Restored dark theme colors in static `colors` object (index.tsx)
+     - Default theme set to 'dark' to match StyleSheet colors
+   - **Result:** App working on http://localhost:8120 with dark theme
+
+ **20:30** - Theme System Final State
+   - Theme store exists with light/dark definitions and toggle function
+   - Toggle button visible and functional (changes Zustand state)
+   - Visual theming uses static dark colors in StyleSheet
+   - Note: Full dynamic visual theming would require inline styles (future enhancement)
+
+---
 
 ### 2025-12-15
 
@@ -199,20 +345,38 @@ None currently - ready for testing
 ## Key Decisions
 1. **Unified Codebase:** React Native + Expo for web/iOS/Android
 2. **Backend:** Supabase (PostgreSQL, Auth, Storage, Edge Functions)
-3. **AI:** Nano Banana (Google Gemini) at ~$0.039/image
-4. **Pricing:** $7.99/mo, $59.99/yr, $79.99 lifetime (unlimited)
-5. **Guest Trial:** 1 free generation before signup required
-6. **Admin:** Standalone Next.js dashboard
+3. **AI:** Google Gemini 2.0 Flash at ~$0.039/image (FREE tier: 1,500/day)
+4. **Pricing:** $7.99/mo, $59.99/yr, $79.99 lifetime
+5. **Generation Limits:** Guest=1 trial, Free=5/week, Paid=15/day ("unlimited")
+6. **Breeds:** Free=15 (dropdown), Paid=100 + type-to-search
+7. **Themes:** Free=Seasons+Holidays, Paid=All (incl. Events)
+8. **Admin:** Standalone Next.js dashboard
 
 ---
 
 ## Next Up
-1. Clean up hardcoded credentials (return to using .env variables)
-2. Remove debug console.log statements from portrait-store.ts
-3. Test full flow: guest → signup → generate → payment
-4. Build admin dashboard (Next.js)
-5. Configure OAuth providers (Google, Apple) in Supabase
-6. Deploy and test on iOS/Android
+1. ~~Clean up hardcoded credentials~~ ✓ DONE (2025-12-16)
+2. ~~Remove debug console.log statements~~ ✓ DONE (2025-12-16)
+3. ~~Theme toggle infrastructure~~ ✓ DONE (2025-12-16)
+4. ~~Full dynamic visual theming~~ ✓ DONE (2025-12-17)
+5. ~~Implement new tier system~~ ✓ DONE (2025-12-17)
+   - ✓ breeds.ts: 100 breeds (15 free, 85 premium) with search
+   - ✓ pricing.ts: new limits (5/week free, 15/day paid)
+   - ✓ pricing.ts: Events=premium, Seasons+Holidays=free
+   - ✓ UI: PRO badges, lock icons, branded watermarks
+   - ✓ Edge Function: weekly/daily limit enforcement
+   - ✓ Migration 00002: weekly tracking columns
+6. **Deploy tier system** ← CURRENT
+   - Run migration 00002_add_weekly_limits.sql in Supabase SQL Editor
+   - Redeploy generate-portrait Edge Function via Supabase Dashboard
+7. **Test full user flow** ← NEXT
+   - Guest: generate 1 portrait → prompt signup
+   - Free: generate 5 portraits → weekly limit message
+   - Premium themes/breeds show lock icons → redirect to signup
+   - Payment flow: checkout → webhook → tier upgrade
+8. Build admin dashboard (Next.js)
+9. Configure OAuth providers (Google, Apple) in Supabase
+10. Deploy and test on iOS/Android
 
 ---
 
@@ -220,25 +384,36 @@ None currently - ready for testing
 ```
 Read this file. Continue from "Active Task" section.
 
-CRITICAL INFO FOR NEXT SESSION:
+CRITICAL INFO:
 - Supabase project: rmalsvaoomhrgflioiqx.supabase.co
-- Edge Function `generate-portrait` is deployed via Dashboard (not CLI)
-- Gemini API working with model: gemini-2.0-flash-exp
-- API key must be in URL: ?key=${googleAiKey}
-- Must include: generationConfig: { responseModalities: ["Text", "Image"] }
-- Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo (with billing enabled)
+- Edge Function `generate-portrait` deployed via Dashboard (not CLI)
+- Gemini API: model gemini-2.0-flash-exp, key in URL ?key=${googleAiKey}
+- Config: generationConfig: { responseModalities: ["Text", "Image"] }
+- Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo
 
 WORKING FEATURES:
 - Portrait generation with Gemini AI ✓
 - Image display after generation ✓
-- Theme support (Christmas, Winter, Birthday, etc.) ✓
+- Theme support (Seasons, Holidays, Events) ✓
+- Light/Dark theme toggle with full visual switching ✓
 - Automatic theme transitions based on date ✓
 
-FILES WITH TEMPORARY HARDCODED VALUES (need cleanup later):
-- apps/mobile/lib/supabase.ts - hardcoded Supabase URL/key
-- apps/mobile/store/portrait-store.ts - hardcoded Supabase URL/key + debug logs
+CURRENT TIER SYSTEM (TO BE IMPLEMENTED):
+- Guest: 1 trial portrait
+- Free: 5/week, 15 breeds (dropdown), Seasons+Holidays themes
+- Paid: 15/day, 100 breeds + search, All themes, All aspect ratios
 
-TO RESET GUEST TRIAL FOR TESTING:
-- Browser console: localStorage.removeItem('pup_portrait_guest')
+KEY FILES FOR TIER SYSTEM:
+- packages/shared/src/breeds.ts - breed definitions
+- packages/shared/src/themes.ts - theme definitions (in pricing.ts currently)
+- packages/shared/src/pricing.ts - tier limits and features
+- supabase/functions/generate-portrait - limit enforcement
+
+DEV SERVER:
+- Run: cd apps/mobile && npx expo start --clear --web
+- Last working port: 8125
+
+TO RESET GUEST TRIAL:
+- Browser: localStorage.removeItem('pup_portrait_guest')
 - Or use incognito window
 ```

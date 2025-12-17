@@ -25,7 +25,38 @@ const DOG_NAMES = [
   'Sophie', 'Zeus', 'Chloe', 'Bentley', 'Stella', 'Milo', 'Penny', 'Oscar',
 ];
 
-const DAILY_FREE_LIMIT = 3;
+// Tier limits configuration
+const LIMITS = {
+  GUEST: {
+    total: 1, // 1 portrait ever
+  },
+  FREE: {
+    weekly: 5, // 5 per week
+  },
+  PREMIUM: {
+    daily: 15, // 15 per day (marketed as "unlimited")
+  },
+  LIFETIME: {
+    daily: 15, // Same as premium
+  },
+};
+
+// Helper to get start of week (Monday)
+function getStartOfWeek(): Date {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  const monday = new Date(now.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+// Helper to get start of today
+function getStartOfDay(): Date {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
+}
 
 serve(async (req: Request) => {
   // Handle CORS preflight
@@ -44,7 +75,8 @@ serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization');
     let userId: string | null = null;
     let userTier = 'free';
-    let dailyUsed = 0;
+    let usageCount = 0;
+    let usagePeriod = 'this week';
 
     // Check if authenticated user
     if (authHeader) {
@@ -57,42 +89,82 @@ serve(async (req: Request) => {
         // Get user profile
         const { data: profile } = await supabase
           .from('profiles')
-          .select('subscription_tier, daily_generations_used, daily_reset_at, lifetime_credits')
+          .select('subscription_tier, weekly_generations_used, weekly_reset_at, daily_generations_used, daily_reset_at, lifetime_credits')
           .eq('id', userId)
           .single();
 
         if (profile) {
           userTier = profile.subscription_tier;
 
-          // Check if daily reset needed
-          const today = new Date().toDateString();
-          const resetDate = profile.daily_reset_at ? new Date(profile.daily_reset_at).toDateString() : null;
+          // Handle FREE tier (weekly limits)
+          if (userTier === 'free') {
+            const weekStart = getStartOfWeek();
+            const resetDate = profile.weekly_reset_at ? new Date(profile.weekly_reset_at) : null;
 
-          if (resetDate !== today) {
-            // Reset daily count
-            await supabase
-              .from('profiles')
-              .update({ daily_generations_used: 0, daily_reset_at: new Date().toISOString() })
-              .eq('id', userId);
-            dailyUsed = 0;
-          } else {
-            dailyUsed = profile.daily_generations_used;
+            // Check if weekly reset needed
+            if (!resetDate || resetDate < weekStart) {
+              await supabase
+                .from('profiles')
+                .update({ weekly_generations_used: 0, weekly_reset_at: weekStart.toISOString() })
+                .eq('id', userId);
+              usageCount = 0;
+            } else {
+              usageCount = profile.weekly_generations_used || 0;
+            }
+
+            usagePeriod = 'this week';
+
+            // Check weekly limit for free tier
+            if (usageCount >= LIMITS.FREE.weekly) {
+              return new Response(
+                JSON.stringify({
+                  error: 'Weekly limit reached',
+                  code: 'WEEKLY_LIMIT_EXCEEDED',
+                  message: `You've used all ${LIMITS.FREE.weekly} free portraits this week. Upgrade to Premium for more!`,
+                  remaining: 0,
+                  resetAt: getStartOfWeek().toISOString(),
+                }),
+                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           }
 
-          // Check limits for free tier
-          if (userTier === 'free' && dailyUsed >= DAILY_FREE_LIMIT) {
-            return new Response(
-              JSON.stringify({
-                error: 'Daily limit reached',
-                code: 'DAILY_LIMIT_EXCEEDED',
-                message: 'You\'ve used all 3 free portraits today. Upgrade to Premium for unlimited!'
-              }),
-              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+          // Handle PREMIUM/LIFETIME tier (daily limits)
+          if (userTier === 'premium' || userTier === 'lifetime') {
+            const dayStart = getStartOfDay();
+            const resetDate = profile.daily_reset_at ? new Date(profile.daily_reset_at) : null;
+
+            // Check if daily reset needed
+            if (!resetDate || resetDate < dayStart) {
+              await supabase
+                .from('profiles')
+                .update({ daily_generations_used: 0, daily_reset_at: dayStart.toISOString() })
+                .eq('id', userId);
+              usageCount = 0;
+            } else {
+              usageCount = profile.daily_generations_used || 0;
+            }
+
+            usagePeriod = 'today';
+
+            // Check daily limit for premium/lifetime
+            const dailyLimit = userTier === 'lifetime' ? LIMITS.LIFETIME.daily : LIMITS.PREMIUM.daily;
+            if (usageCount >= dailyLimit) {
+              return new Response(
+                JSON.stringify({
+                  error: 'Daily limit reached',
+                  code: 'DAILY_LIMIT_EXCEEDED',
+                  message: `You've generated ${dailyLimit} portraits today. Come back tomorrow for more!`,
+                  remaining: 0,
+                  resetAt: new Date(dayStart.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+                }),
+                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           }
 
-          // Check lifetime credits
-          if (userTier === 'lifetime' && (profile.lifetime_credits ?? 0) <= 0) {
+          // Check lifetime credits (if applicable)
+          if (userTier === 'lifetime' && profile.lifetime_credits !== null && profile.lifetime_credits <= 0) {
             return new Response(
               JSON.stringify({
                 error: 'No credits remaining',
@@ -131,7 +203,7 @@ serve(async (req: Request) => {
           JSON.stringify({
             error: 'Guest limit reached',
             code: 'GUEST_LIMIT_EXCEEDED',
-            message: 'Sign up free to get 3 portraits per day!'
+            message: 'Sign up free to get 5 portraits per week!'
           }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -139,8 +211,8 @@ serve(async (req: Request) => {
     }
 
     // Determine resolution based on tier
-    const resolution = userTier === 'free' ? 512 : 1024;
-    const isPremium = userTier !== 'free';
+    const resolution = userTier === 'free' || (!userId && isGuest) ? 512 : 1024;
+    const isPremium = userTier === 'premium' || userTier === 'lifetime';
 
     // Build the prompt
     const breedText = breed === 'random'
@@ -258,20 +330,32 @@ serve(async (req: Request) => {
 
     // Update user stats
     if (userId) {
-      if (userTier === 'lifetime') {
+      if (userTier === 'free') {
+        // Update weekly count for free users
         await supabase
           .from('profiles')
           .update({
-            total_generations: dailyUsed + 1,
-            lifetime_credits: supabase.rpc('decrement_lifetime_credits', { user_id: userId })
+            weekly_generations_used: usageCount + 1,
+            total_generations: supabase.rpc('increment_total_generations', { user_id: userId })
           })
           .eq('id', userId);
-      } else {
+      } else if (userTier === 'premium') {
+        // Update daily count for premium users
         await supabase
           .from('profiles')
           .update({
-            daily_generations_used: dailyUsed + 1,
-            total_generations: dailyUsed + 1
+            daily_generations_used: usageCount + 1,
+            total_generations: supabase.rpc('increment_total_generations', { user_id: userId })
+          })
+          .eq('id', userId);
+      } else if (userTier === 'lifetime') {
+        // Update daily count and decrement lifetime credits
+        await supabase
+          .from('profiles')
+          .update({
+            daily_generations_used: usageCount + 1,
+            total_generations: supabase.rpc('increment_total_generations', { user_id: userId }),
+            lifetime_credits: supabase.rpc('decrement_lifetime_credits', { user_id: userId })
           })
           .eq('id', userId);
       }
@@ -290,21 +374,29 @@ serve(async (req: Request) => {
 
     // Calculate remaining generations
     let remainingGenerations: number | null = null;
-    if (userTier === 'free') {
-      remainingGenerations = DAILY_FREE_LIMIT - (dailyUsed + 1);
-    } else if (userTier === 'lifetime') {
-      // Would need to fetch updated credits
-      remainingGenerations = 99; // Placeholder
+    let limit: number | null = null;
+
+    if (!userId && isGuest) {
+      remainingGenerations = 0; // Guest used their only one
+      limit = LIMITS.GUEST.total;
+    } else if (userTier === 'free') {
+      remainingGenerations = LIMITS.FREE.weekly - (usageCount + 1);
+      limit = LIMITS.FREE.weekly;
+    } else if (userTier === 'premium' || userTier === 'lifetime') {
+      const dailyLimit = userTier === 'lifetime' ? LIMITS.LIFETIME.daily : LIMITS.PREMIUM.daily;
+      remainingGenerations = dailyLimit - (usageCount + 1);
+      limit = dailyLimit;
     }
-    // Premium users get null (unlimited)
 
     return new Response(
       JSON.stringify({
         portrait: {
           ...portrait,
-          hasWatermark: userTier === 'free',
+          hasWatermark: !isPremium,
         },
         remainingGenerations,
+        limit,
+        usagePeriod,
         isDemo: false,
       }),
       {

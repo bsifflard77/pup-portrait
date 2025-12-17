@@ -2,8 +2,16 @@ import type { SubscriptionTier, PlanType } from './types';
 
 // Pricing configuration
 export const PRICING = {
+  GUEST: {
+    totalLimit: 1, // 1 trial portrait ever
+    resolution: 512,
+    hasWatermark: true,
+    processingPriority: 'standard' as const,
+    customColors: false,
+    customBackgrounds: false,
+  },
   FREE: {
-    dailyLimit: 3,
+    weeklyLimit: 5, // 5 per week
     resolution: 512,
     hasWatermark: true,
     processingPriority: 'standard' as const,
@@ -13,7 +21,7 @@ export const PRICING = {
   PREMIUM: {
     monthlyPrice: 799, // $7.99 in cents
     yearlyPrice: 5999, // $59.99 in cents (25% savings)
-    dailyLimit: null, // unlimited
+    dailyLimit: 15, // 15 per day ("unlimited" marketing, but capped to prevent abuse)
     resolution: 1024,
     hasWatermark: false,
     processingPriority: 'priority' as const,
@@ -22,7 +30,7 @@ export const PRICING = {
   },
   LIFETIME: {
     price: 7999, // $79.99 in cents
-    portraitCredits: null, // unlimited
+    dailyLimit: 15, // Same daily cap as premium
     resolution: 1024,
     hasWatermark: false,
     processingPriority: 'priority' as const,
@@ -50,17 +58,40 @@ export function getTierConfig(tier: SubscriptionTier) {
   }
 }
 
-export function canGenerate(tier: SubscriptionTier, dailyUsed: number): boolean {
-  if (tier === 'premium' || tier === 'lifetime') return true;
-  return dailyUsed < PRICING.FREE.dailyLimit;
+export function canGenerate(
+  tier: SubscriptionTier,
+  usageCount: number,
+  isGuest: boolean = false
+): boolean {
+  if (isGuest) {
+    return usageCount < PRICING.GUEST.totalLimit;
+  }
+  if (tier === 'premium' || tier === 'lifetime') {
+    return usageCount < PRICING.PREMIUM.dailyLimit;
+  }
+  // Free tier: 5/week
+  return usageCount < PRICING.FREE.weeklyLimit;
 }
 
 export function getRemainingGenerations(
   tier: SubscriptionTier,
-  dailyUsed: number
-): number | null {
-  if (tier === 'premium' || tier === 'lifetime') return null; // unlimited
-  return Math.max(0, PRICING.FREE.dailyLimit - dailyUsed);
+  usageCount: number,
+  isGuest: boolean = false
+): number {
+  if (isGuest) {
+    return Math.max(0, PRICING.GUEST.totalLimit - usageCount);
+  }
+  if (tier === 'premium' || tier === 'lifetime') {
+    return Math.max(0, PRICING.PREMIUM.dailyLimit - usageCount);
+  }
+  // Free tier: 5/week
+  return Math.max(0, PRICING.FREE.weeklyLimit - usageCount);
+}
+
+export function getUsagePeriodLabel(tier: SubscriptionTier, isGuest: boolean = false): string {
+  if (isGuest) return 'trial';
+  if (tier === 'premium' || tier === 'lifetime') return 'today';
+  return 'this week';
 }
 
 export function getResolution(tier: SubscriptionTier): number {
@@ -224,38 +255,60 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
 // Branding text for free tier shares
 export const SHARE_BRANDING = {
   watermarkText: 'Created with Pup Portrait',
+  watermarkUrl: 'pupportrait.com',
   shareText: (breed: string) => `Check out this adorable ${breed} portrait I created with Pup Portrait! 🐕`,
-  shareTextWithLink: (breed: string) => `Check out this adorable ${breed} portrait I created with Pup Portrait! 🐕\n\nCreate yours at pupportrait.com`,
+  shareTextWithLink: (breed: string) => `Check out this adorable ${breed} portrait I created with Pup Portrait! 🐕\n\nCreate yours free at pupportrait.com`,
   hashtags: '#PupPortrait #AIArt #DogPortrait #Dogs',
+  // QR code URL for watermark (points to app download/website)
+  qrCodeUrl: 'https://pupportrait.com?ref=share',
 };
 
 // Feature availability by tier
 export const FEATURES = {
-  FREE: {
-    dailyGenerations: 3,
+  GUEST: {
+    totalGenerations: 1, // 1 trial portrait ever
     aspectRatios: ['square'] as AspectRatioId[],
     resolution: 512,
-    watermark: true,
-    brandedSharing: true, // Must include "Created by Pup Portrait"
+    watermark: true, // Watermark with "Created with Pup Portrait" + URL
+    brandedSharing: true, // Must include branding in share text
+    socialSharing: true, // Can share to social media (with branding)
     hdDownload: false,
     customColors: false,
     customBackgrounds: false,
     premiumBreeds: false,
+    premiumThemes: false, // Only Seasons + Holidays
+    breedSearch: false, // Dropdown only
+    saveToGallery: false,
+  },
+  FREE: {
+    weeklyGenerations: 5, // 5 per week
+    aspectRatios: ['square'] as AspectRatioId[],
+    resolution: 512,
+    watermark: true, // Watermark with "Created with Pup Portrait" + URL
+    brandedSharing: true, // Must include branding in share text
+    socialSharing: true, // Can share to social media (with branding)
+    hdDownload: false,
+    customColors: false,
+    customBackgrounds: false,
+    premiumBreeds: false,
+    premiumThemes: false, // Only Seasons + Holidays
+    breedSearch: false, // Dropdown only
     saveToGallery: true,
-    themes: true, // Seasons, holidays, events - FREE for all!
   },
   PREMIUM: {
-    dailyGenerations: null, // unlimited
+    dailyGenerations: 15, // 15 per day (marketed as "unlimited")
     aspectRatios: ['square', 'portrait', 'story', 'landscape'] as AspectRatioId[],
     resolution: 1024,
-    watermark: false,
-    brandedSharing: false, // Can opt out
+    watermark: false, // No watermark on images
+    brandedSharing: false, // Can opt out of branding in share text
+    socialSharing: true, // Can share to social media (clean, no forced branding)
     hdDownload: true,
     customColors: true,
     customBackgrounds: true,
-    premiumBreeds: true,
+    premiumBreeds: true, // All 100 breeds
+    premiumThemes: true, // All themes including Events
+    breedSearch: true, // Type-to-search
     saveToGallery: true,
-    themes: true, // All themes available
   },
 } as const;
 
@@ -282,13 +335,14 @@ export interface Theme {
   icon: string;
   prompt: string; // AI prompt modifier
   available: boolean; // Whether currently selectable (for seasonal themes)
+  isPremium: boolean; // Whether this theme requires premium subscription
   startMonth?: number; // 1-12, for auto-availability
   endMonth?: number; // 1-12, for auto-availability
   startDay?: number; // 1-31, optional day precision
   endDay?: number; // 1-31, optional day precision
 }
 
-// Seasons - always available but highlighted when in season
+// Seasons - FREE for all users
 export const SEASONS: Theme[] = [
   {
     id: 'spring',
@@ -297,6 +351,7 @@ export const SEASONS: Theme[] = [
     icon: 'flower-outline',
     prompt: 'in a beautiful spring setting with cherry blossoms, fresh green grass, and blooming flowers',
     available: true,
+    isPremium: false,
     startMonth: 3,
     endMonth: 5,
   },
@@ -307,6 +362,7 @@ export const SEASONS: Theme[] = [
     icon: 'sunny-outline',
     prompt: 'in a bright sunny summer setting with blue skies, lush greenery, and warm golden light',
     available: true,
+    isPremium: false,
     startMonth: 6,
     endMonth: 8,
   },
@@ -317,6 +373,7 @@ export const SEASONS: Theme[] = [
     icon: 'leaf-outline',
     prompt: 'in a cozy autumn setting with colorful falling leaves, orange and red foliage, and warm afternoon light',
     available: true,
+    isPremium: false,
     startMonth: 9,
     endMonth: 11,
   },
@@ -327,12 +384,13 @@ export const SEASONS: Theme[] = [
     icon: 'snow-outline',
     prompt: 'in a magical winter wonderland with fresh snow, frost-covered trees, and soft winter light',
     available: true,
+    isPremium: false,
     startMonth: 12,
     endMonth: 2,
   },
 ];
 
-// Holidays - available around their time
+// Holidays - FREE for all users
 export const HOLIDAYS: Theme[] = [
   {
     id: 'christmas',
@@ -341,6 +399,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'gift-outline',
     prompt: 'in a festive Christmas setting with a decorated tree, twinkling lights, wrapped presents, and holiday decorations',
     available: true,
+    isPremium: false,
     startMonth: 12,
     startDay: 1,
     endMonth: 12,
@@ -353,6 +412,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'skull-outline',
     prompt: 'in a spooky but cute Halloween setting with jack-o-lanterns, autumn leaves, and playful Halloween decorations',
     available: true,
+    isPremium: false,
     startMonth: 10,
     endMonth: 10,
   },
@@ -363,6 +423,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'heart-outline',
     prompt: 'in a romantic Valentine\'s Day setting with hearts, roses, and soft pink lighting',
     available: true,
+    isPremium: false,
     startMonth: 2,
     endMonth: 2,
   },
@@ -373,6 +434,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'egg-outline',
     prompt: 'in a cheerful Easter setting with pastel colors, Easter eggs, spring flowers, and cute bunny decorations',
     available: true,
+    isPremium: false,
     startMonth: 3,
     endMonth: 4,
   },
@@ -383,6 +445,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'star-outline',
     prompt: 'in a patriotic 4th of July setting with American flags, red white and blue decorations, and festive summer vibes',
     available: true,
+    isPremium: false,
     startMonth: 7,
     endMonth: 7,
   },
@@ -393,6 +456,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'restaurant-outline',
     prompt: 'in a warm Thanksgiving setting with autumn harvest decorations, pumpkins, cornucopia, and cozy fall colors',
     available: true,
+    isPremium: false,
     startMonth: 11,
     endMonth: 11,
   },
@@ -403,6 +467,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'leaf-outline',
     prompt: 'in a lucky St. Patrick\'s Day setting with shamrocks, green decorations, pots of gold, and Irish charm',
     available: true,
+    isPremium: false,
     startMonth: 3,
     endMonth: 3,
   },
@@ -413,6 +478,7 @@ export const HOLIDAYS: Theme[] = [
     icon: 'sparkles-outline',
     prompt: 'in a glamorous New Year\'s celebration setting with confetti, streamers, champagne glasses, and festive gold decorations',
     available: true,
+    isPremium: false,
     startMonth: 12,
     startDay: 26,
     endMonth: 1,
@@ -420,7 +486,7 @@ export const HOLIDAYS: Theme[] = [
   },
 ];
 
-// Special events - always available
+// Special events - PREMIUM only
 export const EVENTS: Theme[] = [
   {
     id: 'birthday',
@@ -429,6 +495,7 @@ export const EVENTS: Theme[] = [
     icon: 'balloon-outline',
     prompt: 'in a fun birthday party setting with colorful balloons, birthday cake, party hats, and celebration decorations',
     available: true,
+    isPremium: true,
   },
   {
     id: 'graduation',
@@ -437,6 +504,7 @@ export const EVENTS: Theme[] = [
     icon: 'school-outline',
     prompt: 'in a proud graduation setting with a cap and diploma, celebration confetti, and academic decorations',
     available: true,
+    isPremium: true,
   },
   {
     id: 'wedding',
@@ -445,6 +513,7 @@ export const EVENTS: Theme[] = [
     icon: 'heart-circle-outline',
     prompt: 'in an elegant wedding setting with white flowers, romantic lighting, and beautiful wedding decorations',
     available: true,
+    isPremium: true,
   },
   {
     id: 'beach-vacation',
@@ -453,6 +522,7 @@ export const EVENTS: Theme[] = [
     icon: 'umbrella-outline',
     prompt: 'on a tropical beach vacation with palm trees, ocean waves, beach umbrella, and sandy shores',
     available: true,
+    isPremium: true,
   },
   {
     id: 'camping',
@@ -461,6 +531,7 @@ export const EVENTS: Theme[] = [
     icon: 'bonfire-outline',
     prompt: 'at a cozy camping scene with a tent, campfire, pine trees, and starry night sky',
     available: true,
+    isPremium: true,
   },
   {
     id: 'sports',
@@ -469,6 +540,7 @@ export const EVENTS: Theme[] = [
     icon: 'football-outline',
     prompt: 'in an exciting game day setting with sports equipment, team spirit decorations, and athletic vibes',
     available: true,
+    isPremium: true,
   },
   {
     id: 'cozy-home',
@@ -477,6 +549,7 @@ export const EVENTS: Theme[] = [
     icon: 'home-outline',
     prompt: 'in a cozy home setting with a warm fireplace, soft blankets, and comfortable living room furniture',
     available: true,
+    isPremium: true,
   },
   {
     id: 'adventure',
@@ -485,6 +558,7 @@ export const EVENTS: Theme[] = [
     icon: 'compass-outline',
     prompt: 'on an exciting outdoor adventure with mountains, hiking trails, and beautiful natural scenery',
     available: true,
+    isPremium: true,
   },
 ];
 
@@ -543,4 +617,33 @@ export function getFeaturedThemes(limit: number = 4): Theme[] {
 // Get themes by category
 export function getThemesByCategory(category: ThemeCategory): Theme[] {
   return ALL_THEMES.filter(t => t.category === category);
+}
+
+// Get free themes (Seasons + Holidays only)
+export const FREE_THEMES: Theme[] = ALL_THEMES.filter(t => !t.isPremium);
+
+// Get premium themes (Events only)
+export const PREMIUM_THEMES: Theme[] = ALL_THEMES.filter(t => t.isPremium);
+
+// Check if a user can use a specific theme based on their tier
+export function canUseTheme(tier: SubscriptionTier, theme: Theme): boolean {
+  if (tier === 'premium' || tier === 'lifetime') return true;
+  return !theme.isPremium;
+}
+
+// Get available themes for a user's tier
+export function getAvailableThemes(tier: SubscriptionTier): Theme[] {
+  if (tier === 'premium' || tier === 'lifetime') return ALL_THEMES;
+  return FREE_THEMES;
+}
+
+// Get featured themes for the current time (filtered by tier)
+export function getFeaturedThemesForTier(
+  tier: SubscriptionTier,
+  limit: number = 4
+): Theme[] {
+  const availableThemes = getAvailableThemes(tier);
+  return availableThemes
+    .filter(t => isThemeInSeason(t))
+    .slice(0, limit);
 }
