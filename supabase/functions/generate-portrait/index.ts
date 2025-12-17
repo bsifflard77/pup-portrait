@@ -336,28 +336,32 @@ serve(async (req: Request) => {
           .from('profiles')
           .update({
             weekly_generations_used: usageCount + 1,
-            total_generations: supabase.rpc('increment_total_generations', { user_id: userId })
           })
           .eq('id', userId);
+
+        // Increment total generations separately
+        await supabase.rpc('increment_total_generations', { user_id: userId });
       } else if (userTier === 'premium') {
         // Update daily count for premium users
         await supabase
           .from('profiles')
           .update({
             daily_generations_used: usageCount + 1,
-            total_generations: supabase.rpc('increment_total_generations', { user_id: userId })
           })
           .eq('id', userId);
+
+        await supabase.rpc('increment_total_generations', { user_id: userId });
       } else if (userTier === 'lifetime') {
-        // Update daily count and decrement lifetime credits
+        // Update daily count for lifetime users
         await supabase
           .from('profiles')
           .update({
             daily_generations_used: usageCount + 1,
-            total_generations: supabase.rpc('increment_total_generations', { user_id: userId }),
-            lifetime_credits: supabase.rpc('decrement_lifetime_credits', { user_id: userId })
           })
           .eq('id', userId);
+
+        await supabase.rpc('increment_total_generations', { user_id: userId });
+        await supabase.rpc('decrement_lifetime_credits', { user_id: userId });
       }
     }
 

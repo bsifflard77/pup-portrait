@@ -6,10 +6,10 @@
 ---
 
 ## Active Task
-- **Task:** Deploy tier system and test full user flow
+- **Task:** Debug weekly counter not incrementing
 - **Feature:** Tier System Overhaul
 - **Started:** 2025-12-17
-- **Status:** ✅ Code complete - Ready for deployment & testing
+- **Status:** 🐛 BUG - Counter stuck at 4/5
 
 ### Implementation Completed:
 - ✅ breeds.ts: Expanded to 100 breeds (15 free, 85 premium) with search
@@ -18,11 +18,38 @@
 - ✅ index.tsx: UI updated with PRO badges, lock icons, branded watermarks
 - ✅ Edge Function: Backend limit enforcement (weekly for free, daily for paid)
 - ✅ Migration 00002: Added weekly_generations_used, weekly_reset_at columns
+- ✅ Migration run in Supabase SQL Editor
+- ✅ Edge Function redeployed via Supabase Dashboard
+- ✅ Guest portrait generation working
+- ✅ User signup flow working
+- ✅ Fixed home.tsx authenticated user page:
+  - Light theme with gradient background (matching landing page)
+  - Centered max-width layout (480px on web)
+  - Correct "Weekly Portraits - 5 remaining this week" text
+  - Theme selection with seasons/holidays/events
+  - Upgrade CTA for free users
+  - Added refreshUser() call after successful generation
+  - Added watermark overlay for free tier
 
-### Deployment Steps Required:
-1. Run migration `00002_add_weekly_limits.sql` in Supabase SQL Editor
-2. Redeploy Edge Function via Supabase Dashboard (copy from supabase/functions/generate-portrait/index.ts)
-3. Test full user flow: guest → signup → generate → hit limits → upgrade
+### Current Bug:
+**Weekly counter not incrementing** - Shows "4 of 5 remaining" but doesn't decrement after generation.
+
+Possible causes to investigate:
+1. Edge Function update to `weekly_generations_used` may be failing silently
+2. The `usageCount` variable may be stale (captured before generation)
+3. RLS policy might be blocking the update
+4. Need to check Supabase logs for errors on profile update
+
+### Debug steps for next session:
+1. Check Supabase Dashboard → Logs for Edge Function errors
+2. Check profiles table directly - is `weekly_generations_used` updating?
+3. Add console.log to Edge Function to trace the update
+4. Verify RLS policies allow service role to update profiles
+
+### Remaining Test Steps:
+1. **FIX** weekly counter increment bug
+2. Hit weekly limit (5) - verify limit message displays
+3. Test payment flow: checkout → webhook → tier upgrade
 
 ---
 
@@ -191,6 +218,28 @@
 
    - Updated watermark in UI to include URL (pupportrait.com)
    - Updated SHARE_BRANDING with watermarkUrl and qrCodeUrl
+
+ **15:00** - Deployed Tier System
+   - Ran migration 00002_add_weekly_limits.sql in Supabase SQL Editor
+   - Redeployed Edge Function generate-portrait via Supabase Dashboard
+   - Tested guest portrait generation - SUCCESS with watermark
+   - Fixed database trigger for new user signup (added error handling)
+
+ **16:00** - Fixed Authenticated Home Page (home.tsx)
+   - Bug report: "5 remaining today" instead of "5 remaining this week"
+   - Bug report: Dark theme, full-width layout instead of light/centered
+   - Fixes applied:
+     - Added `weeklyGenerationsUsed` and `weeklyResetAt` to User type
+     - Updated auth-store.ts to fetch weekly fields from database
+     - Added `name` field to Portrait type
+     - Updated portrait-store.ts to include name field
+     - Rewrote home.tsx with:
+       - useThemeStore() for dynamic light theme colors
+       - LinearGradient background (matching landing page)
+       - maxWidth: 480px centered layout for web
+       - "Weekly Portraits" with `getUsagePeriodLabel()` ("this week")
+       - Theme selector with seasons/holidays/events (premium locked)
+       - Upgrade CTA at bottom for free users
 
 ---
 

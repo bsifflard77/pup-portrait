@@ -9,6 +9,8 @@ export interface User {
   stripeCustomerId: string | null;
   dailyGenerationsUsed: number;
   dailyResetAt: string | null;
+  weeklyGenerationsUsed: number;
+  weeklyResetAt: string | null;
   totalGenerations: number;
   createdAt: string;
 }
@@ -24,6 +26,7 @@ export interface Portrait {
   color: string | null;
   background: string | null;
   style: PortraitStyle;
+  name: string;
   imageUrl: string;
   thumbnailUrl: string | null;
   prompt: string | null;

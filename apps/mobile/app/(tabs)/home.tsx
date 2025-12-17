@@ -1,272 +1,821 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet, Dimensions, Platform } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/auth-store';
 import { usePortraitStore } from '../../store/portrait-store';
+import { useThemeStore } from '../../store/theme-store';
 import {
   BREEDS,
   FREE_BREEDS,
-  PREMIUM_BREEDS,
   PREMIUM_COLORS,
   PREMIUM_BACKGROUNDS,
   getRandomBreed,
   PRICING,
   getRemainingGenerations,
+  getUsagePeriodLabel,
+  Theme,
+  SEASONS,
+  HOLIDAYS,
+  EVENTS,
+  FREE_THEMES,
+  ALL_THEMES,
+  getFeaturedThemesForTier,
+  isThemeInSeason,
 } from '@pup-portrait/shared';
 
+const { width: screenWidth } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
+const maxWidth = isWeb ? 480 : screenWidth;
+
 export default function HomePage() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const { currentPortrait, isGenerating, remainingGenerations, generatePortrait, error } =
     usePortraitStore();
+  const { colors } = useThemeStore();
 
   const [selectedBreed, setSelectedBreed] = useState('random');
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedBackground, setSelectedBackground] = useState('');
+  const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
   const [showBreedPicker, setShowBreedPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
 
   const isPremium = user?.subscriptionTier === 'premium' || user?.subscriptionTier === 'lifetime';
   const availableBreeds = isPremium ? BREEDS : FREE_BREEDS;
+  const tier = user?.subscriptionTier || 'free';
 
-  const remaining = remainingGenerations ?? getRemainingGenerations(
-    user?.subscriptionTier || 'free',
-    user?.dailyGenerationsUsed || 0
-  );
+  // Get usage info based on tier
+  const usageCount = tier === 'free'
+    ? (user?.weeklyGenerationsUsed || 0)
+    : (user?.dailyGenerationsUsed || 0);
+
+  const remaining = remainingGenerations ?? getRemainingGenerations(tier, usageCount);
+  const usagePeriod = getUsagePeriodLabel(tier);
+  const limit = tier === 'free' ? PRICING.FREE.weeklyLimit : PRICING.PREMIUM.dailyLimit;
 
   const canGenerate = isPremium || (remaining !== null && remaining > 0);
+
+  // Get featured themes for user's tier
+  const featuredThemes = getFeaturedThemesForTier(tier, 4);
+  const availableThemes = isPremium ? ALL_THEMES : FREE_THEMES;
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
 
     const breed = selectedBreed === 'random' ? getRandomBreed(isPremium).id : selectedBreed;
 
-    await generatePortrait({
+    const result = await generatePortrait({
       breed,
       color: isPremium ? selectedColor : undefined,
       background: isPremium ? selectedBackground : undefined,
+      themePrompt: selectedTheme?.prompt,
     });
+
+    // Refresh user profile to update weekly/daily counts
+    if (result.success) {
+      await useAuthStore.getState().refreshUser();
+    }
   };
 
   const getBreedName = (id: string) => {
+    if (id === 'random') return 'Surprise Me!';
     return BREEDS.find((b) => b.id === id)?.name || 'Random Breed';
   };
 
   return (
-    <ScrollView className="flex-1 bg-background">
-      <View className="px-4 py-6">
-        {/* Generation Counter */}
-        {!isPremium && (
-          <View className="bg-card rounded-xl p-4 mb-6 flex-row items-center justify-between">
-            <View>
-              <Text className="text-white font-medium">Daily Portraits</Text>
-              <Text className="text-muted-foreground text-sm">
-                {remaining} of {PRICING.FREE.dailyLimit} remaining today
-              </Text>
+    <LinearGradient
+      colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
+      style={styles.gradient}
+    >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { alignItems: 'center' }]}
+      >
+        <View style={[styles.container, { maxWidth }]}>
+          {/* Generation Counter */}
+          {!isPremium && (
+            <View style={[styles.usageCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View>
+                <Text style={[styles.usageTitle, { color: colors.text }]}>
+                  {tier === 'free' ? 'Weekly Portraits' : 'Daily Portraits'}
+                </Text>
+                <Text style={[styles.usageSubtitle, { color: colors.muted }]}>
+                  {remaining} of {limit} remaining {usagePeriod}
+                </Text>
+              </View>
+              <Pressable
+                style={[styles.upgradeButton, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/(tabs)/profile')}
+              >
+                <Text style={styles.upgradeButtonText}>Upgrade</Text>
+              </Pressable>
             </View>
-            <Pressable className="bg-accent rounded-lg px-4 py-2">
-              <Text className="text-white font-medium">Upgrade</Text>
-            </Pressable>
+          )}
+
+          {/* Theme Selection */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Theme</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.themeScroll}>
+              {/* No theme option */}
+              <Pressable
+                onPress={() => setSelectedTheme(null)}
+                style={[
+                  styles.themeChip,
+                  {
+                    backgroundColor: !selectedTheme ? colors.primary : colors.card,
+                    borderColor: colors.border,
+                  }
+                ]}
+              >
+                <Ionicons
+                  name="sparkles-outline"
+                  size={16}
+                  color={!selectedTheme ? colors.white : colors.muted}
+                />
+                <Text style={[
+                  styles.themeChipText,
+                  { color: !selectedTheme ? colors.white : colors.text }
+                ]}>
+                  Classic
+                </Text>
+              </Pressable>
+
+              {/* Featured themes */}
+              {featuredThemes.map((theme) => (
+                <Pressable
+                  key={theme.id}
+                  onPress={() => setSelectedTheme(theme)}
+                  style={[
+                    styles.themeChip,
+                    {
+                      backgroundColor: selectedTheme?.id === theme.id ? colors.primary : colors.card,
+                      borderColor: colors.border,
+                    }
+                  ]}
+                >
+                  <Ionicons
+                    name={theme.icon as any}
+                    size={16}
+                    color={selectedTheme?.id === theme.id ? colors.white : colors.muted}
+                  />
+                  <Text style={[
+                    styles.themeChipText,
+                    { color: selectedTheme?.id === theme.id ? colors.white : colors.text }
+                  ]}>
+                    {theme.name}
+                  </Text>
+                  {theme.isPremium && !isPremium && (
+                    <Ionicons name="lock-closed" size={12} color={colors.accent} />
+                  )}
+                </Pressable>
+              ))}
+
+              {/* More themes button */}
+              <Pressable
+                onPress={() => setShowThemePicker(true)}
+                style={[styles.themeChip, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <Ionicons name="ellipsis-horizontal" size={16} color={colors.muted} />
+                <Text style={[styles.themeChipText, { color: colors.text }]}>More</Text>
+              </Pressable>
+            </ScrollView>
           </View>
-        )}
 
-        {/* Breed Selector */}
-        <View className="mb-4">
-          <Text className="text-white font-medium mb-2">Breed</Text>
-          <Pressable
-            onPress={() => setShowBreedPicker(!showBreedPicker)}
-            className="bg-card border border-border rounded-xl p-4 flex-row items-center justify-between"
-          >
-            <Text className="text-white">{getBreedName(selectedBreed)}</Text>
-            <Ionicons name="chevron-down" size={20} color="#a1a1aa" />
-          </Pressable>
-
-          {showBreedPicker && (
-            <View className="bg-card border border-border rounded-xl mt-2 max-h-64">
-              <ScrollView nestedScrollEnabled>
-                {availableBreeds.map((breed) => (
+          {/* Theme Picker Modal */}
+          {showThemePicker && (
+            <View style={[styles.pickerModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.pickerHeader}>
+                <Text style={[styles.pickerTitle, { color: colors.text }]}>All Themes</Text>
+                <Pressable onPress={() => setShowThemePicker(false)}>
+                  <Ionicons name="close" size={24} color={colors.muted} />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.pickerList} nestedScrollEnabled>
+                {/* Seasons */}
+                <Text style={[styles.categoryTitle, { color: colors.muted }]}>Seasons</Text>
+                {SEASONS.map((theme) => (
                   <Pressable
-                    key={breed.id}
+                    key={theme.id}
                     onPress={() => {
-                      setSelectedBreed(breed.id);
-                      setShowBreedPicker(false);
+                      setSelectedTheme(theme);
+                      setShowThemePicker(false);
                     }}
-                    className={`p-3 border-b border-border flex-row items-center justify-between ${
-                      selectedBreed === breed.id ? 'bg-primary/20' : ''
-                    }`}
+                    style={[
+                      styles.pickerItem,
+                      { borderBottomColor: colors.border },
+                      selectedTheme?.id === theme.id && { backgroundColor: colors.primaryLight + '20' }
+                    ]}
                   >
-                    <View className="flex-1">
-                      <Text className="text-white">{breed.name}</Text>
-                      <Text className="text-muted-foreground text-xs">{breed.description}</Text>
-                    </View>
-                    {breed.isPremium && !isPremium && (
-                      <View className="bg-accent/20 rounded px-2 py-1 ml-2">
-                        <Text className="text-accent text-xs">Premium</Text>
+                    <Ionicons name={theme.icon as any} size={20} color={colors.primary} />
+                    <Text style={[styles.pickerItemText, { color: colors.text }]}>{theme.name}</Text>
+                    {isThemeInSeason(theme) && (
+                      <View style={[styles.inSeasonBadge, { backgroundColor: colors.accentGreen + '20' }]}>
+                        <Text style={[styles.inSeasonText, { color: colors.accentGreen }]}>In Season</Text>
                       </View>
+                    )}
+                  </Pressable>
+                ))}
+
+                {/* Holidays */}
+                <Text style={[styles.categoryTitle, { color: colors.muted }]}>Holidays</Text>
+                {HOLIDAYS.map((theme) => (
+                  <Pressable
+                    key={theme.id}
+                    onPress={() => {
+                      setSelectedTheme(theme);
+                      setShowThemePicker(false);
+                    }}
+                    style={[
+                      styles.pickerItem,
+                      { borderBottomColor: colors.border },
+                      selectedTheme?.id === theme.id && { backgroundColor: colors.primaryLight + '20' }
+                    ]}
+                  >
+                    <Ionicons name={theme.icon as any} size={20} color={colors.primary} />
+                    <Text style={[styles.pickerItemText, { color: colors.text }]}>{theme.name}</Text>
+                    {isThemeInSeason(theme) && (
+                      <View style={[styles.inSeasonBadge, { backgroundColor: colors.accentGreen + '20' }]}>
+                        <Text style={[styles.inSeasonText, { color: colors.accentGreen }]}>In Season</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                ))}
+
+                {/* Events (Premium) */}
+                <Text style={[styles.categoryTitle, { color: colors.muted }]}>Events (Premium)</Text>
+                {EVENTS.map((theme) => (
+                  <Pressable
+                    key={theme.id}
+                    onPress={() => {
+                      if (isPremium) {
+                        setSelectedTheme(theme);
+                        setShowThemePicker(false);
+                      }
+                    }}
+                    style={[
+                      styles.pickerItem,
+                      { borderBottomColor: colors.border },
+                      selectedTheme?.id === theme.id && { backgroundColor: colors.primaryLight + '20' },
+                      !isPremium && { opacity: 0.6 }
+                    ]}
+                  >
+                    <Ionicons name={theme.icon as any} size={20} color={isPremium ? colors.primary : colors.muted} />
+                    <Text style={[styles.pickerItemText, { color: isPremium ? colors.text : colors.muted }]}>
+                      {theme.name}
+                    </Text>
+                    {!isPremium && (
+                      <Ionicons name="lock-closed" size={16} color={colors.accent} />
                     )}
                   </Pressable>
                 ))}
               </ScrollView>
             </View>
           )}
-        </View>
 
-        {/* Premium Options */}
-        {isPremium && (
-          <>
-            {/* Color Selector */}
-            <View className="mb-4">
-              <Text className="text-white font-medium mb-2">Fur Color</Text>
-              <Pressable
-                onPress={() => setShowColorPicker(!showColorPicker)}
-                className="bg-card border border-border rounded-xl p-4 flex-row items-center justify-between"
-              >
-                <Text className="text-white">
-                  {PREMIUM_COLORS.find((c) => c.value === selectedColor)?.name || 'Natural Color'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#a1a1aa" />
-              </Pressable>
+          {/* Breed Selector */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Breed</Text>
+            <Pressable
+              onPress={() => setShowBreedPicker(!showBreedPicker)}
+              style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Text style={[styles.selectorText, { color: colors.text }]}>{getBreedName(selectedBreed)}</Text>
+              <Ionicons name="chevron-down" size={20} color={colors.muted} />
+            </Pressable>
 
-              {showColorPicker && (
-                <View className="bg-card border border-border rounded-xl mt-2">
-                  <ScrollView nestedScrollEnabled className="max-h-48">
-                    {PREMIUM_COLORS.map((color) => (
-                      <Pressable
-                        key={color.id}
-                        onPress={() => {
-                          setSelectedColor(color.value);
-                          setShowColorPicker(false);
-                        }}
-                        className={`p-3 border-b border-border ${
-                          selectedColor === color.value ? 'bg-primary/20' : ''
-                        }`}
-                      >
-                        <Text className="text-white">{color.name}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-            </View>
-
-            {/* Background Selector */}
-            <View className="mb-6">
-              <Text className="text-white font-medium mb-2">Background</Text>
-              <Pressable
-                onPress={() => setShowBackgroundPicker(!showBackgroundPicker)}
-                className="bg-card border border-border rounded-xl p-4 flex-row items-center justify-between"
-              >
-                <Text className="text-white">
-                  {PREMIUM_BACKGROUNDS.find((b) => b.value === selectedBackground)?.name ||
-                    'Default Park'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#a1a1aa" />
-              </Pressable>
-
-              {showBackgroundPicker && (
-                <View className="bg-card border border-border rounded-xl mt-2">
-                  <ScrollView nestedScrollEnabled className="max-h-48">
-                    {PREMIUM_BACKGROUNDS.map((bg) => (
-                      <Pressable
-                        key={bg.id}
-                        onPress={() => {
-                          setSelectedBackground(bg.value);
-                          setShowBackgroundPicker(false);
-                        }}
-                        className={`p-3 border-b border-border ${
-                          selectedBackground === bg.value ? 'bg-primary/20' : ''
-                        }`}
-                      >
-                        <Text className="text-white">{bg.name}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-            </View>
-          </>
-        )}
-
-        {/* Portrait Display */}
-        <View className="bg-card rounded-2xl overflow-hidden mb-6">
-          {isGenerating ? (
-            <View className="aspect-square items-center justify-center">
-              <ActivityIndicator size="large" color="#6366f1" />
-              <Text className="text-muted-foreground mt-4">Creating your masterpiece...</Text>
-            </View>
-          ) : currentPortrait ? (
-            <View>
-              <Image
-                source={{ uri: currentPortrait.imageUrl }}
-                className="w-full aspect-square"
-                contentFit="cover"
-              />
-              <View className="absolute bottom-0 left-0 right-0 bg-black/60 p-4">
-                <Text className="text-white font-semibold text-lg">
-                  Meet {currentPortrait.name || 'Your Pup'}
-                </Text>
-                <Text className="text-white/80">{currentPortrait.breed}</Text>
+            {showBreedPicker && (
+              <View style={[styles.pickerDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <ScrollView nestedScrollEnabled style={{ maxHeight: 256 }}>
+                  <Pressable
+                    onPress={() => {
+                      setSelectedBreed('random');
+                      setShowBreedPicker(false);
+                    }}
+                    style={[
+                      styles.pickerItem,
+                      { borderBottomColor: colors.border },
+                      selectedBreed === 'random' && { backgroundColor: colors.primaryLight + '20' }
+                    ]}
+                  >
+                    <Text style={[styles.pickerItemText, { color: colors.text }]}>Surprise Me!</Text>
+                  </Pressable>
+                  {availableBreeds.map((breed) => (
+                    <Pressable
+                      key={breed.id}
+                      onPress={() => {
+                        setSelectedBreed(breed.id);
+                        setShowBreedPicker(false);
+                      }}
+                      style={[
+                        styles.pickerItem,
+                        { borderBottomColor: colors.border },
+                        selectedBreed === breed.id && { backgroundColor: colors.primaryLight + '20' }
+                      ]}
+                    >
+                      <View style={styles.breedInfo}>
+                        <Text style={[styles.pickerItemText, { color: colors.text }]}>{breed.name}</Text>
+                        <Text style={[styles.breedDesc, { color: colors.muted }]}>{breed.description}</Text>
+                      </View>
+                      {breed.isPremium && !isPremium && (
+                        <View style={[styles.premiumBadge, { backgroundColor: colors.accent + '20' }]}>
+                          <Text style={[styles.premiumBadgeText, { color: colors.accent }]}>Premium</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  ))}
+                </ScrollView>
               </View>
+            )}
+          </View>
+
+          {/* Premium Options */}
+          {isPremium && (
+            <>
+              {/* Color Selector */}
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Fur Color</Text>
+                <Pressable
+                  onPress={() => setShowColorPicker(!showColorPicker)}
+                  style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <Text style={[styles.selectorText, { color: colors.text }]}>
+                    {PREMIUM_COLORS.find((c) => c.value === selectedColor)?.name || 'Natural Color'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={colors.muted} />
+                </Pressable>
+
+                {showColorPicker && (
+                  <View style={[styles.pickerDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <ScrollView nestedScrollEnabled style={{ maxHeight: 192 }}>
+                      {PREMIUM_COLORS.map((color) => (
+                        <Pressable
+                          key={color.id}
+                          onPress={() => {
+                            setSelectedColor(color.value);
+                            setShowColorPicker(false);
+                          }}
+                          style={[
+                            styles.pickerItem,
+                            { borderBottomColor: colors.border },
+                            selectedColor === color.value && { backgroundColor: colors.primaryLight + '20' }
+                          ]}
+                        >
+                          <Text style={[styles.pickerItemText, { color: colors.text }]}>{color.name}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+
+              {/* Background Selector */}
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Background</Text>
+                <Pressable
+                  onPress={() => setShowBackgroundPicker(!showBackgroundPicker)}
+                  style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <Text style={[styles.selectorText, { color: colors.text }]}>
+                    {PREMIUM_BACKGROUNDS.find((b) => b.value === selectedBackground)?.name || 'Default Park'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={colors.muted} />
+                </Pressable>
+
+                {showBackgroundPicker && (
+                  <View style={[styles.pickerDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <ScrollView nestedScrollEnabled style={{ maxHeight: 192 }}>
+                      {PREMIUM_BACKGROUNDS.map((bg) => (
+                        <Pressable
+                          key={bg.id}
+                          onPress={() => {
+                            setSelectedBackground(bg.value);
+                            setShowBackgroundPicker(false);
+                          }}
+                          style={[
+                            styles.pickerItem,
+                            { borderBottomColor: colors.border },
+                            selectedBackground === bg.value && { backgroundColor: colors.primaryLight + '20' }
+                          ]}
+                        >
+                          <Text style={[styles.pickerItemText, { color: colors.text }]}>{bg.name}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            </>
+          )}
+
+          {/* Portrait Display */}
+          <View style={[styles.portraitCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {isGenerating ? (
+              <View style={styles.portraitPlaceholder}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.generatingText, { color: colors.muted }]}>Creating your masterpiece...</Text>
+              </View>
+            ) : currentPortrait ? (
+              <View>
+                <Image
+                  source={{ uri: currentPortrait.imageUrl }}
+                  style={styles.portraitImage}
+                  contentFit="cover"
+                />
+                {/* Watermark for free tier */}
+                {!isPremium && (
+                  <View style={styles.watermarkContainer}>
+                    <View style={styles.watermarkBadge}>
+                      <Ionicons name="paw" size={14} color="rgba(255,255,255,0.9)" />
+                      <Text style={styles.watermarkText}>pupportrait.com</Text>
+                    </View>
+                  </View>
+                )}
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.7)']}
+                  style={styles.portraitOverlay}
+                >
+                  <Text style={styles.portraitName}>Meet {currentPortrait.name || 'Your Pup'}</Text>
+                  <Text style={styles.portraitBreed}>{currentPortrait.breed}</Text>
+                </LinearGradient>
+              </View>
+            ) : (
+              <View style={styles.portraitPlaceholder}>
+                <Ionicons name="paw" size={80} color={colors.primary} />
+                <Text style={[styles.placeholderTitle, { color: colors.text }]}>Ready to Create</Text>
+                <Text style={[styles.placeholderSubtitle, { color: colors.muted }]}>
+                  Select your options and tap generate
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Error Display */}
+          {error && (
+            <View style={[styles.errorCard, { backgroundColor: colors.destructive + '20', borderColor: colors.destructive }]}>
+              <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
             </View>
-          ) : (
-            <View className="aspect-square items-center justify-center p-8">
-              <Ionicons name="paw" size={80} color="#6366f1" />
-              <Text className="text-white text-xl font-semibold mt-4 text-center">
-                Ready to Create
+          )}
+
+          {/* Generate Button */}
+          <Pressable
+            onPress={handleGenerate}
+            disabled={isGenerating || !canGenerate}
+            style={[
+              styles.generateButton,
+              { backgroundColor: isGenerating || !canGenerate ? colors.primary + '50' : colors.primary }
+            ]}
+          >
+            <View style={styles.generateButtonContent}>
+              {isGenerating ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Ionicons name="sparkles" size={20} color={colors.white} />
+              )}
+              <Text style={styles.generateButtonText}>
+                {isGenerating
+                  ? 'Generating...'
+                  : !canGenerate
+                  ? 'Limit Reached'
+                  : 'Generate Portrait'}
               </Text>
-              <Text className="text-muted-foreground text-center mt-2">
-                Select your options and tap generate
-              </Text>
+            </View>
+          </Pressable>
+
+          {/* Action Buttons */}
+          {currentPortrait && (
+            <View style={styles.actionButtons}>
+              <Pressable style={[styles.actionButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="download" size={20} color={colors.muted} />
+                <Text style={[styles.actionButtonText, { color: colors.text }]}>Download</Text>
+              </Pressable>
+              <Pressable style={[styles.actionButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="share" size={20} color={colors.muted} />
+                <Text style={[styles.actionButtonText, { color: colors.text }]}>Share</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Upgrade CTA for free users */}
+          {!isPremium && (
+            <View style={[styles.upgradeCta, { backgroundColor: colors.primary + '10', borderColor: colors.primary }]}>
+              <View style={styles.upgradeCtaContent}>
+                <Ionicons name="star" size={24} color={colors.primary} />
+                <View style={styles.upgradeCtaText}>
+                  <Text style={[styles.upgradeCtaTitle, { color: colors.text }]}>Unlock Premium</Text>
+                  <Text style={[styles.upgradeCtaSubtitle, { color: colors.muted }]}>
+                    HD portraits, all breeds, custom backgrounds & more
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                style={[styles.upgradeCtaButton, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/(tabs)/profile')}
+              >
+                <Text style={styles.upgradeCtaButtonText}>View Plans</Text>
+              </Pressable>
             </View>
           )}
         </View>
-
-        {/* Error Display */}
-        {error && (
-          <View className="bg-destructive/20 border border-destructive rounded-xl p-4 mb-4">
-            <Text className="text-destructive">{error}</Text>
-          </View>
-        )}
-
-        {/* Generate Button */}
-        <Pressable
-          onPress={handleGenerate}
-          disabled={isGenerating || !canGenerate}
-          className={`rounded-xl p-4 items-center ${
-            isGenerating || !canGenerate ? 'bg-primary/50' : 'bg-primary'
-          }`}
-        >
-          <View className="flex-row items-center">
-            {isGenerating ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Ionicons name="sparkles" size={20} color="white" />
-            )}
-            <Text className="text-white font-semibold text-lg ml-2">
-              {isGenerating
-                ? 'Generating...'
-                : !canGenerate
-                ? 'Daily Limit Reached'
-                : 'Generate Portrait'}
-            </Text>
-          </View>
-        </Pressable>
-
-        {/* Action Buttons */}
-        {currentPortrait && (
-          <View className="flex-row mt-4 gap-3">
-            <Pressable className="flex-1 bg-card border border-border rounded-xl p-3 items-center flex-row justify-center">
-              <Ionicons name="download" size={20} color="#a1a1aa" />
-              <Text className="text-white ml-2">Download</Text>
-            </Pressable>
-            <Pressable className="flex-1 bg-card border border-border rounded-xl p-3 items-center flex-row justify-center">
-              <Ionicons name="share" size={20} color="#a1a1aa" />
-              <Text className="text-white ml-2">Share</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
+  container: {
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  usageCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  usageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  usageSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  upgradeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  upgradeButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  themeScroll: {
+    marginHorizontal: -4,
+  },
+  themeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    gap: 6,
+  },
+  themeChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  pickerModal: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  pickerList: {
+    maxHeight: 300,
+  },
+  categoryTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginTop: 12,
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  selector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  selectorText: {
+    fontSize: 16,
+  },
+  pickerDropdown: {
+    borderRadius: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  pickerItemText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  breedInfo: {
+    flex: 1,
+  },
+  breedDesc: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  premiumBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  premiumBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  inSeasonBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  inSeasonText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  portraitCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  portraitPlaceholder: {
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  portraitImage: {
+    width: '100%',
+    aspectRatio: 1,
+  },
+  watermarkContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+  },
+  watermarkBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  watermarkText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  portraitOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+  },
+  portraitName: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  portraitBreed: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  generatingText: {
+    marginTop: 16,
+    fontSize: 16,
+  },
+  placeholderTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  placeholderSubtitle: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  errorCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  errorText: {
+    fontSize: 14,
+  },
+  generateButton: {
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  generateButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  generateButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  upgradeCta: {
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 24,
+    borderWidth: 1,
+  },
+  upgradeCtaContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  upgradeCtaText: {
+    flex: 1,
+  },
+  upgradeCtaTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  upgradeCtaSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  upgradeCtaButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  upgradeCtaButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
