@@ -6,6 +6,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  accessToken: string | null;
 
   // Actions
   initialize: () => Promise<void>;
@@ -13,12 +14,14 @@ interface AuthState {
   signup: (email: string, password: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  getAccessToken: () => string | null;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  accessToken: null,
 
   initialize: async () => {
     try {
@@ -26,6 +29,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Listen for auth state changes
       supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+
         if (session?.user) {
           // Fetch profile data
           const { data: profile } = await supabase
@@ -53,6 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               },
               isAuthenticated: true,
               isLoading: false,
+              accessToken: session.access_token,
             });
           }
         } else {
@@ -60,12 +66,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            accessToken: null,
           });
         }
       });
 
       // Get initial session
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('Initial session check:', session?.user?.email || 'no session');
 
       if (session?.user) {
         const { data: profile } = await supabase
@@ -92,6 +100,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               createdAt: profile.created_at,
             },
             isAuthenticated: true,
+            accessToken: session.access_token,
           });
         }
       }
@@ -125,7 +134,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     await signOut();
-    set({ user: null, isAuthenticated: false });
+    set({ user: null, isAuthenticated: false, accessToken: null });
+  },
+
+  getAccessToken: () => {
+    return get().accessToken;
   },
 
   refreshUser: async () => {

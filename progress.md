@@ -6,50 +6,61 @@
 ---
 
 ## Active Task
-- **Task:** Debug weekly counter not incrementing
-- **Feature:** Tier System Overhaul
+- **Task:** Fix authentication session not passing to Edge Function
+- **Feature:** Weekly Counter Bug Fix
 - **Started:** 2025-12-17
-- **Status:** 🐛 BUG - Counter stuck at 4/5
+- **Status:** 🔴 IN PROGRESS - Root cause identified, fix implemented, needs testing
 
-### Implementation Completed:
-- ✅ breeds.ts: Expanded to 100 breeds (15 free, 85 premium) with search
-- ✅ pricing.ts: New limits (Guest: 1 total, Free: 5/week, Paid: 15/day)
-- ✅ pricing.ts: Themes marked with isPremium (Events=paid, Seasons+Holidays=free)
-- ✅ index.tsx: UI updated with PRO badges, lock icons, branded watermarks
-- ✅ Edge Function: Backend limit enforcement (weekly for free, daily for paid)
-- ✅ Migration 00002: Added weekly_generations_used, weekly_reset_at columns
-- ✅ Migration run in Supabase SQL Editor
-- ✅ Edge Function redeployed via Supabase Dashboard
-- ✅ Guest portrait generation working
-- ✅ User signup flow working
-- ✅ Fixed home.tsx authenticated user page:
-  - Light theme with gradient background (matching landing page)
-  - Centered max-width layout (480px on web)
-  - Correct "Weekly Portraits - 5 remaining this week" text
-  - Theme selection with seasons/holidays/events
-  - Upgrade CTA for free users
-  - Added refreshUser() call after successful generation
-  - Added watermark overlay for free tier
+### Root Cause Identified (Session 2025-12-17 Evening):
+**The weekly counter wasn't updating because the user's auth session wasn't being sent to the Edge Function.**
 
-### Current Bug:
-**Weekly counter not incrementing** - Shows "4 of 5 remaining" but doesn't decrement after generation.
+Investigation revealed:
+1. `supabase.auth.getSession()` was returning `null` even when user appeared logged in
+2. The UI showed the user as authenticated (via auth-store), but the session wasn't persisted in localStorage
+3. Without an access token, Edge Function treated requests as unauthenticated (guest)
+4. Guest requests don't update `weekly_generations_used` - only authenticated users do
 
-Possible causes to investigate:
-1. Edge Function update to `weekly_generations_used` may be failing silently
-2. The `usageCount` variable may be stale (captured before generation)
-3. RLS policy might be blocking the update
-4. Need to check Supabase logs for errors on profile update
+### Fixes Applied:
+1. **auth-store.ts**:
+   - Added `accessToken` to state
+   - Store `session.access_token` when auth state changes
+   - Added `getAccessToken()` method
+   - Added debug logging for auth state changes
 
-### Debug steps for next session:
-1. Check Supabase Dashboard → Logs for Edge Function errors
-2. Check profiles table directly - is `weekly_generations_used` updating?
-3. Add console.log to Edge Function to trace the update
-4. Verify RLS policies allow service role to update profiles
+2. **portrait-store.ts**:
+   - Import `useAuthStore`
+   - Get access token from auth store instead of calling `supabase.auth.getSession()`
+   - Added debug logging to verify auth state
 
-### Remaining Test Steps:
-1. **FIX** weekly counter increment bug
-2. Hit weekly limit (5) - verify limit message displays
-3. Test payment flow: checkout → webhook → tier upgrade
+3. **Edge Function (index.ts)**:
+   - Added comprehensive logging throughout
+   - Fixed date comparison (use timestamps instead of Date objects)
+   - Fixed `getStartOfWeek()` and `getStartOfDay()` to use UTC
+   - Added error handling for all database updates
+
+### Next Session TODO:
+1. **Start dev server**: `cd apps/mobile && npx expo start --web`
+2. **Log out completely** (clear any stale session)
+3. **Log back in** (this will populate the accessToken in auth store)
+4. **Check browser console** for:
+   - `Auth state change: SIGNED_IN bsifflard747@gmail.com`
+   - `Initial session check: bsifflard747@gmail.com`
+5. **Generate a portrait** and check:
+   - Browser console: `Auth check: { hasAccessToken: true, ... }`
+   - Supabase Edge Function logs: `AUTHENTICATED USER: ...`
+   - Supabase Edge Function logs: `Updated weekly_generations_used to 1`
+6. **Verify database**: Check profiles table shows `weekly_generations_used` incremented
+7. **Verify UI**: Counter should decrement (5→4→3→2→1→0)
+
+### Files Modified This Session:
+- `supabase/functions/generate-portrait/index.ts` - Logging, UTC dates, error handling
+- `apps/mobile/store/auth-store.ts` - Store access token, add getAccessToken()
+- `apps/mobile/store/portrait-store.ts` - Use auth store token instead of getSession()
+
+### Database State:
+- User profile exists: `bsifflard747@gmail.com` (ID: 3056dfad-b90a-4e46-a7e8-5e4b48b4c46a)
+- Current `weekly_generations_used`: 0 (stuck because auth wasn't working)
+- Profile was manually created via SQL (trigger may not be working for new signups)
 
 ---
 

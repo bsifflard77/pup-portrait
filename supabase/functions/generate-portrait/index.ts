@@ -41,20 +41,21 @@ const LIMITS = {
   },
 };
 
-// Helper to get start of week (Monday)
+// Helper to get start of week (Monday) in UTC
 function getStartOfWeek(): Date {
   const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  const monday = new Date(now.setDate(diff));
-  monday.setHours(0, 0, 0, 0);
+  const day = now.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day; // Days to subtract to get to Monday
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() + diff);
+  monday.setUTCHours(0, 0, 0, 0);
   return monday;
 }
 
-// Helper to get start of today
+// Helper to get start of today in UTC
 function getStartOfDay(): Date {
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  now.setUTCHours(0, 0, 0, 0);
   return now;
 }
 
@@ -85,6 +86,7 @@ serve(async (req: Request) => {
 
       if (user && !authError) {
         userId = user.id;
+        console.log('AUTHENTICATED USER:', userId, 'EMAIL:', user.email);
 
         // Get user profile
         const { data: profile } = await supabase
@@ -99,10 +101,21 @@ serve(async (req: Request) => {
           // Handle FREE tier (weekly limits)
           if (userTier === 'free') {
             const weekStart = getStartOfWeek();
-            const resetDate = profile.weekly_reset_at ? new Date(profile.weekly_reset_at) : null;
+            const weekStartTime = weekStart.getTime();
+            const resetTime = profile.weekly_reset_at ? new Date(profile.weekly_reset_at).getTime() : 0;
 
-            // Check if weekly reset needed
-            if (!resetDate || resetDate < weekStart) {
+            console.log('FREE tier check:', {
+              weekStart: weekStart.toISOString(),
+              weekStartTime,
+              resetDate: profile.weekly_reset_at || 'null',
+              resetTime,
+              weekly_generations_used: profile.weekly_generations_used,
+              needsReset: resetTime < weekStartTime
+            });
+
+            // Check if weekly reset needed (compare timestamps, not Date objects)
+            if (resetTime < weekStartTime) {
+              console.log('Resetting weekly counter to 0');
               await supabase
                 .from('profiles')
                 .update({ weekly_generations_used: 0, weekly_reset_at: weekStart.toISOString() })
@@ -110,6 +123,7 @@ serve(async (req: Request) => {
               usageCount = 0;
             } else {
               usageCount = profile.weekly_generations_used || 0;
+              console.log('Using existing usageCount:', usageCount);
             }
 
             usagePeriod = 'this week';
@@ -132,10 +146,11 @@ serve(async (req: Request) => {
           // Handle PREMIUM/LIFETIME tier (daily limits)
           if (userTier === 'premium' || userTier === 'lifetime') {
             const dayStart = getStartOfDay();
-            const resetDate = profile.daily_reset_at ? new Date(profile.daily_reset_at) : null;
+            const dayStartTime = dayStart.getTime();
+            const resetTime = profile.daily_reset_at ? new Date(profile.daily_reset_at).getTime() : 0;
 
-            // Check if daily reset needed
-            if (!resetDate || resetDate < dayStart) {
+            // Check if daily reset needed (compare timestamps)
+            if (resetTime < dayStartTime) {
               await supabase
                 .from('profiles')
                 .update({ daily_generations_used: 0, daily_reset_at: dayStart.toISOString() })
@@ -330,38 +345,77 @@ serve(async (req: Request) => {
 
     // Update user stats
     if (userId) {
+      console.log(`Updating stats for user ${userId}, tier: ${userTier}, current usage: ${usageCount}`);
+
       if (userTier === 'free') {
         // Update weekly count for free users
-        await supabase
+        const { error: updateError, data: updateData } = await supabase
           .from('profiles')
           .update({
             weekly_generations_used: usageCount + 1,
           })
-          .eq('id', userId);
+          .eq('id', userId)
+          .select('weekly_generations_used')
+          .single();
+
+        if (updateError) {
+          console.error('Failed to update weekly_generations_used:', updateError);
+        } else {
+          console.log(`Updated weekly_generations_used to ${updateData?.weekly_generations_used}`);
+        }
 
         // Increment total generations separately
-        await supabase.rpc('increment_total_generations', { user_id: userId });
+        const { error: rpcError } = await supabase.rpc('increment_total_generations', { user_id: userId });
+        if (rpcError) {
+          console.error('Failed to increment total generations:', rpcError);
+        }
       } else if (userTier === 'premium') {
         // Update daily count for premium users
-        await supabase
+        const { error: updateError, data: updateData } = await supabase
           .from('profiles')
           .update({
             daily_generations_used: usageCount + 1,
           })
-          .eq('id', userId);
+          .eq('id', userId)
+          .select('daily_generations_used')
+          .single();
 
-        await supabase.rpc('increment_total_generations', { user_id: userId });
+        if (updateError) {
+          console.error('Failed to update daily_generations_used:', updateError);
+        } else {
+          console.log(`Updated daily_generations_used to ${updateData?.daily_generations_used}`);
+        }
+
+        const { error: rpcError } = await supabase.rpc('increment_total_generations', { user_id: userId });
+        if (rpcError) {
+          console.error('Failed to increment total generations:', rpcError);
+        }
       } else if (userTier === 'lifetime') {
         // Update daily count for lifetime users
-        await supabase
+        const { error: updateError, data: updateData } = await supabase
           .from('profiles')
           .update({
             daily_generations_used: usageCount + 1,
           })
-          .eq('id', userId);
+          .eq('id', userId)
+          .select('daily_generations_used')
+          .single();
 
-        await supabase.rpc('increment_total_generations', { user_id: userId });
-        await supabase.rpc('decrement_lifetime_credits', { user_id: userId });
+        if (updateError) {
+          console.error('Failed to update daily_generations_used:', updateError);
+        } else {
+          console.log(`Updated daily_generations_used to ${updateData?.daily_generations_used}`);
+        }
+
+        const { error: rpcError } = await supabase.rpc('increment_total_generations', { user_id: userId });
+        if (rpcError) {
+          console.error('Failed to increment total generations:', rpcError);
+        }
+
+        const { error: creditError } = await supabase.rpc('decrement_lifetime_credits', { user_id: userId });
+        if (creditError) {
+          console.error('Failed to decrement lifetime credits:', creditError);
+        }
       }
     }
 

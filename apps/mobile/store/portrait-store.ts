@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { getDeviceFingerprint, markGuestTrialUsed } from '../lib/guest-tracker';
+import { useAuthStore } from './auth-store';
 import type { Portrait, GeneratePortraitRequest, PortraitStyle } from '@pup-portrait/shared';
 
 interface PortraitState {
@@ -30,8 +31,17 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
     set({ isGenerating: true, error: null });
 
     try {
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
+      // Get access token from auth store (more reliable than getSession)
+      const accessToken = useAuthStore.getState().getAccessToken();
+      const authUser = useAuthStore.getState().user;
+
+      // Debug logging
+      console.log('Auth check:', {
+        hasAccessToken: !!accessToken,
+        userId: authUser?.id,
+        email: authUser?.email,
+        isAuthenticated: useAuthStore.getState().isAuthenticated,
+      });
 
       const body: any = {
         breed: request.breed,
