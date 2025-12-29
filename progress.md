@@ -1,28 +1,28 @@
 # Progress Tracker
 **Project:** Pup Portrait
-**Last Updated:** 2025-12-17
-**Current Focus:** Implementing Updated Tier System
+**Last Updated:** 2025-12-28
+**Current Focus:** Testing Weekly Counter Auth Fix
 
 ---
 
 ## Active Task
-- **Task:** Fix authentication session not passing to Edge Function
+- **Task:** Test authentication session fix for Edge Function
 - **Feature:** Weekly Counter Bug Fix
 - **Started:** 2025-12-17
-- **Status:** 🔴 IN PROGRESS - Root cause identified, fix implemented, needs testing
+- **Status:** 🟡 READY TO TEST - Fix implemented, awaiting verification
 
-### Root Cause Identified (Session 2025-12-17 Evening):
-**The weekly counter wasn't updating because the user's auth session wasn't being sent to the Edge Function.**
+### Problem Summary:
+The weekly counter showed "4 of 5 remaining" but never decremented after generating portraits.
 
-Investigation revealed:
-1. `supabase.auth.getSession()` was returning `null` even when user appeared logged in
-2. The UI showed the user as authenticated (via auth-store), but the session wasn't persisted in localStorage
-3. Without an access token, Edge Function treated requests as unauthenticated (guest)
-4. Guest requests don't update `weekly_generations_used` - only authenticated users do
+### Root Cause (Identified 2025-12-17):
+**The auth session wasn't being sent to the Edge Function.**
+- `supabase.auth.getSession()` was returning `null` even when user appeared logged in
+- Without an access token, Edge Function treated requests as unauthenticated (guest)
+- Guest requests don't update `weekly_generations_used` - only authenticated users do
 
-### Fixes Applied:
+### Fixes Applied (Committed 2025-12-17, commit 25bf884):
 1. **auth-store.ts**:
-   - Added `accessToken` to state
+   - Added `accessToken` to Zustand state
    - Store `session.access_token` when auth state changes
    - Added `getAccessToken()` method
    - Added debug logging for auth state changes
@@ -38,29 +38,65 @@ Investigation revealed:
    - Fixed `getStartOfWeek()` and `getStartOfDay()` to use UTC
    - Added error handling for all database updates
 
-### Next Session TODO:
-1. **Start dev server**: `cd apps/mobile && npx expo start --web`
-2. **Log out completely** (clear any stale session)
-3. **Log back in** (this will populate the accessToken in auth store)
-4. **Check browser console** for:
-   - `Auth state change: SIGNED_IN bsifflard747@gmail.com`
-   - `Initial session check: bsifflard747@gmail.com`
-5. **Generate a portrait** and check:
-   - Browser console: `Auth check: { hasAccessToken: true, ... }`
-   - Supabase Edge Function logs: `AUTHENTICATED USER: ...`
-   - Supabase Edge Function logs: `Updated weekly_generations_used to 1`
-6. **Verify database**: Check profiles table shows `weekly_generations_used` incremented
-7. **Verify UI**: Counter should decrement (5→4→3→2→1→0)
+---
 
-### Files Modified This Session:
-- `supabase/functions/generate-portrait/index.ts` - Logging, UTC dates, error handling
-- `apps/mobile/store/auth-store.ts` - Store access token, add getAccessToken()
-- `apps/mobile/store/portrait-store.ts` - Use auth store token instead of getSession()
+## TESTING CHECKLIST (Start Here!)
+
+### Step 1: Start Dev Server
+```bash
+cd apps/mobile && npx expo start --web
+```
+
+### Step 2: Log Out & Log Back In
+- Click profile/logout to clear any stale session
+- Log back in with: bsifflard747@gmail.com
+- **This is critical** - must log in fresh to populate accessToken in Zustand store
+
+### Step 3: Check Browser Console (F12)
+Look for these messages after login:
+```
+Auth state change: SIGNED_IN bsifflard747@gmail.com
+Initial session check: bsifflard747@gmail.com
+```
+
+### Step 4: Generate a Portrait
+When you click "Generate Portrait", check browser console for:
+```
+Auth check: { hasAccessToken: true, userId: "...", email: "...", isAuthenticated: true }
+```
+
+### Step 5: Check Supabase Edge Function Logs
+Go to Supabase Dashboard > Edge Functions > generate-portrait > Logs
+Look for:
+```
+AUTHENTICATED USER: 3056dfad-b90a-4e46-a7e8-5e4b48b4c46a EMAIL: bsifflard747@gmail.com
+FREE tier check: { weekStart: "...", weekly_generations_used: 0, ... }
+Updated weekly_generations_used to 1
+```
+
+### Step 6: Verify Database
+In Supabase Dashboard > Table Editor > profiles:
+- Check `weekly_generations_used` incremented (0 → 1 → 2, etc.)
+
+### Step 7: Verify UI
+- Counter should show: 5/5 → 4/5 → 3/5, etc.
+- Each portrait generated should decrement by 1
+
+---
+
+### If Still Not Working:
+1. Check if `hasAccessToken: false` in browser console → session not saved properly
+2. Check Edge Function logs for `AUTHENTICATED USER:` → if missing, token not reaching server
+3. Check for errors in Edge Function logs during database update
 
 ### Database State:
 - User profile exists: `bsifflard747@gmail.com` (ID: 3056dfad-b90a-4e46-a7e8-5e4b48b4c46a)
-- Current `weekly_generations_used`: 0 (stuck because auth wasn't working)
 - Profile was manually created via SQL (trigger may not be working for new signups)
+
+### Files Modified:
+- `supabase/functions/generate-portrait/index.ts` - Logging, UTC dates, error handling
+- `apps/mobile/store/auth-store.ts` - Store access token, add getAccessToken()
+- `apps/mobile/store/portrait-store.ts` - Use auth store token instead of getSession()
 
 ---
 
@@ -442,7 +478,7 @@ None currently - ready for testing
 
 ## Resume Instructions
 ```
-Read this file. Continue from "Active Task" section.
+Read this file. Start with "TESTING CHECKLIST" section above.
 
 CRITICAL INFO:
 - Supabase project: rmalsvaoomhrgflioiqx.supabase.co
@@ -450,6 +486,12 @@ CRITICAL INFO:
 - Gemini API: model gemini-2.0-flash-exp, key in URL ?key=${googleAiKey}
 - Config: generationConfig: { responseModalities: ["Text", "Image"] }
 - Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo
+- Test user: bsifflard747@gmail.com (ID: 3056dfad-b90a-4e46-a7e8-5e4b48b4c46a)
+
+CURRENT ISSUE (Ready to Test):
+- Weekly counter wasn't decrementing because auth token wasn't being sent
+- Fix: Store accessToken in Zustand auth store, retrieve from there when making API calls
+- Must log out and log back in to populate the token after fix
 
 WORKING FEATURES:
 - Portrait generation with Gemini AI ✓
@@ -458,19 +500,18 @@ WORKING FEATURES:
 - Light/Dark theme toggle with full visual switching ✓
 - Automatic theme transitions based on date ✓
 
-CURRENT TIER SYSTEM (TO BE IMPLEMENTED):
+TIER SYSTEM (Implemented, needs testing):
 - Guest: 1 trial portrait
 - Free: 5/week, 15 breeds (dropdown), Seasons+Holidays themes
 - Paid: 15/day, 100 breeds + search, All themes, All aspect ratios
 
-KEY FILES FOR TIER SYSTEM:
-- packages/shared/src/breeds.ts - breed definitions
-- packages/shared/src/themes.ts - theme definitions (in pricing.ts currently)
-- packages/shared/src/pricing.ts - tier limits and features
-- supabase/functions/generate-portrait - limit enforcement
+KEY FILES FOR AUTH FIX:
+- apps/mobile/store/auth-store.ts - accessToken state, getAccessToken()
+- apps/mobile/store/portrait-store.ts - uses auth store token
+- supabase/functions/generate-portrait/index.ts - logging, UTC dates
 
 DEV SERVER:
-- Run: cd apps/mobile && npx expo start --clear --web
+- Run: cd apps/mobile && npx expo start --web
 - Last working port: 8125
 
 TO RESET GUEST TRIAL:
