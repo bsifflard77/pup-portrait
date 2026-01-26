@@ -343,78 +343,55 @@ serve(async (req: Request) => {
       throw new Error('Failed to save portrait');
     }
 
-    // Update user stats
+    // Update user stats using atomic increment functions
     if (userId) {
-      console.log(`Updating stats for user ${userId}, tier: ${userTier}, current usage: ${usageCount}`);
+      console.log(`Updating stats for user ${userId}, tier: ${userTier}`);
 
       if (userTier === 'free') {
-        // Update weekly count for free users
-        const { error: updateError, data: updateData } = await supabase
-          .from('profiles')
-          .update({
-            weekly_generations_used: usageCount + 1,
-          })
-          .eq('id', userId)
-          .select('weekly_generations_used')
-          .single();
+        // Use atomic increment for weekly count
+        const { data: incrementData, error: incrementError } = await supabase
+          .rpc('increment_weekly_generations', { p_user_id: userId });
 
-        if (updateError) {
-          console.error('Failed to update weekly_generations_used:', updateError);
+        if (incrementError) {
+          console.error('Failed to increment weekly_generations:', incrementError);
         } else {
-          console.log(`Updated weekly_generations_used to ${updateData?.weekly_generations_used}`);
+          const result = incrementData?.[0];
+          console.log(`Incremented weekly_generations_used to ${result?.new_count}${result?.was_reset ? ' (reset applied)' : ''}`);
+          // Update usageCount for accurate remaining calculation
+          usageCount = result?.new_count || usageCount + 1;
         }
 
-        // Increment total generations separately
+        // Increment total generations
         const { error: rpcError } = await supabase.rpc('increment_total_generations', { user_id: userId });
         if (rpcError) {
           console.error('Failed to increment total generations:', rpcError);
         }
-      } else if (userTier === 'premium') {
-        // Update daily count for premium users
-        const { error: updateError, data: updateData } = await supabase
-          .from('profiles')
-          .update({
-            daily_generations_used: usageCount + 1,
-          })
-          .eq('id', userId)
-          .select('daily_generations_used')
-          .single();
+      } else if (userTier === 'premium' || userTier === 'lifetime') {
+        // Use atomic increment for daily count
+        const { data: incrementData, error: incrementError } = await supabase
+          .rpc('increment_daily_generations', { p_user_id: userId });
 
-        if (updateError) {
-          console.error('Failed to update daily_generations_used:', updateError);
+        if (incrementError) {
+          console.error('Failed to increment daily_generations:', incrementError);
         } else {
-          console.log(`Updated daily_generations_used to ${updateData?.daily_generations_used}`);
+          const result = incrementData?.[0];
+          console.log(`Incremented daily_generations_used to ${result?.new_count}${result?.was_reset ? ' (reset applied)' : ''}`);
+          // Update usageCount for accurate remaining calculation
+          usageCount = result?.new_count || usageCount + 1;
         }
 
-        const { error: rpcError } = await supabase.rpc('increment_total_generations', { user_id: userId });
-        if (rpcError) {
-          console.error('Failed to increment total generations:', rpcError);
-        }
-      } else if (userTier === 'lifetime') {
-        // Update daily count for lifetime users
-        const { error: updateError, data: updateData } = await supabase
-          .from('profiles')
-          .update({
-            daily_generations_used: usageCount + 1,
-          })
-          .eq('id', userId)
-          .select('daily_generations_used')
-          .single();
-
-        if (updateError) {
-          console.error('Failed to update daily_generations_used:', updateError);
-        } else {
-          console.log(`Updated daily_generations_used to ${updateData?.daily_generations_used}`);
-        }
-
+        // Increment total generations
         const { error: rpcError } = await supabase.rpc('increment_total_generations', { user_id: userId });
         if (rpcError) {
           console.error('Failed to increment total generations:', rpcError);
         }
 
-        const { error: creditError } = await supabase.rpc('decrement_lifetime_credits', { user_id: userId });
-        if (creditError) {
-          console.error('Failed to decrement lifetime credits:', creditError);
+        // Decrement lifetime credits if applicable
+        if (userTier === 'lifetime') {
+          const { error: creditError } = await supabase.rpc('decrement_lifetime_credits', { user_id: userId });
+          if (creditError) {
+            console.error('Failed to decrement lifetime credits:', creditError);
+          }
         }
       }
     }
@@ -431,6 +408,7 @@ serve(async (req: Request) => {
     }
 
     // Calculate remaining generations
+    // Note: usageCount is now the NEW count after the atomic increment
     let remainingGenerations: number | null = null;
     let limit: number | null = null;
 
@@ -438,11 +416,11 @@ serve(async (req: Request) => {
       remainingGenerations = 0; // Guest used their only one
       limit = LIMITS.GUEST.total;
     } else if (userTier === 'free') {
-      remainingGenerations = LIMITS.FREE.weekly - (usageCount + 1);
+      remainingGenerations = Math.max(0, LIMITS.FREE.weekly - usageCount);
       limit = LIMITS.FREE.weekly;
     } else if (userTier === 'premium' || userTier === 'lifetime') {
       const dailyLimit = userTier === 'lifetime' ? LIMITS.LIFETIME.daily : LIMITS.PREMIUM.daily;
-      remainingGenerations = dailyLimit - (usageCount + 1);
+      remainingGenerations = Math.max(0, dailyLimit - usageCount);
       limit = dailyLimit;
     }
 
