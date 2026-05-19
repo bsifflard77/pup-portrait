@@ -569,7 +569,7 @@ export default function LandingPage() {
 
           <View style={styles.pricingOptions}>
             <Text style={[styles.pricingFrom, { color: colors.muted }]}>Starting at</Text>
-            <Text style={[styles.pricingAmount, { color: colors.text }]}>$7.99<Text style={[styles.pricingPeriod, { color: colors.muted }]}>/mo</Text></Text>
+            <Text style={[styles.pricingAmount, { color: colors.text }]}>$9.99<Text style={[styles.pricingPeriod, { color: colors.muted }]}>/mo</Text></Text>
           </View>
 
           <Pressable
@@ -582,7 +582,7 @@ export default function LandingPage() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.muted }]}>© 2024 Pup Portrait. All rights reserved.</Text>
+          <Text style={[styles.footerText, { color: colors.muted }]}>© 2025 Pup Portrait. All rights reserved.</Text>
           <View style={styles.footerLinks}>
             <Pressable>
               <Text style={[styles.footerLink, { color: colors.muted }]}>Privacy</Text>

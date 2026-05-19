@@ -7,14 +7,17 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuthStore();
+  const { colors } = useThemeStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,60 +47,60 @@ export default function LoginPage() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-background"
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <View className="flex-1 px-6 py-8 justify-center">
+      <View style={styles.content}>
         {/* Header */}
-        <View className="items-center mb-8">
-          <View className="w-20 h-20 bg-primary/20 rounded-full items-center justify-center mb-4">
-            <Ionicons name="paw" size={40} color="#6366f1" />
+        <View style={styles.header}>
+          <View style={[styles.logoCircle, { backgroundColor: `${colors.primary}20` }]}>
+            <Ionicons name="paw" size={40} color={colors.primary} />
           </View>
-          <Text className="text-white text-2xl font-bold">Welcome Back</Text>
-          <Text className="text-muted-foreground text-center mt-2">
+          <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
             Sign in to continue creating portraits
           </Text>
         </View>
 
         {/* Error */}
         {error && (
-          <View className="bg-destructive/20 border border-destructive rounded-xl p-4 mb-4">
-            <Text className="text-destructive text-center">{error}</Text>
+          <View style={[styles.errorBox, { borderColor: colors.destructive }]}>
+            <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
           </View>
         )}
 
         {/* Form */}
-        <View className="mb-6">
-          <Text className="text-white font-medium mb-2">Email</Text>
+        <View style={styles.form}>
+          <Text style={[styles.label, { color: colors.text }]}>Email</Text>
           <TextInput
             value={email}
             onChangeText={setEmail}
             placeholder="Enter your email"
-            placeholderTextColor="#a1a1aa"
+            placeholderTextColor={colors.muted}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            className="bg-card border border-border rounded-xl p-4 text-white mb-4"
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
           />
 
-          <Text className="text-white font-medium mb-2">Password</Text>
-          <View className="relative">
+          <Text style={[styles.label, { color: colors.text }]}>Password</Text>
+          <View style={styles.passwordContainer}>
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
-              placeholderTextColor="#a1a1aa"
+              placeholderTextColor={colors.muted}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
-              className="bg-card border border-border rounded-xl p-4 text-white pr-12"
+              style={[styles.input, styles.passwordInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             />
             <Pressable
               onPress={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-4"
+              style={styles.eyeButton}
             >
               <Ionicons
                 name={showPassword ? 'eye-off' : 'eye'}
                 size={22}
-                color="#a1a1aa"
+                color={colors.muted}
               />
             </Pressable>
           </View>
@@ -107,44 +110,168 @@ export default function LoginPage() {
         <Pressable
           onPress={handleLogin}
           disabled={isLoading}
-          className={`rounded-xl p-4 items-center mb-4 ${
-            isLoading ? 'bg-primary/50' : 'bg-primary'
-          }`}
+          style={[styles.loginButton, { backgroundColor: isLoading ? `${colors.primary}80` : colors.primary }]}
         >
           {isLoading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-white font-semibold text-lg">Sign In</Text>
+            <Text style={styles.loginButtonText}>Sign In</Text>
           )}
         </Pressable>
 
         {/* Divider */}
-        <View className="flex-row items-center my-6">
-          <View className="flex-1 h-px bg-border" />
-          <Text className="text-muted-foreground mx-4">or continue with</Text>
-          <View className="flex-1 h-px bg-border" />
+        <View style={styles.divider}>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.muted }]}>or continue with</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         {/* Social Login */}
-        <View className="flex-row gap-4 mb-6">
-          <Pressable className="flex-1 bg-card border border-border rounded-xl p-4 flex-row items-center justify-center">
+        <View style={styles.socialRow}>
+          <Pressable style={[styles.socialButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="logo-google" size={20} color="#ea4335" />
-            <Text className="text-white ml-2">Google</Text>
+            <Text style={[styles.socialText, { color: colors.text }]}>Google</Text>
           </Pressable>
-          <Pressable className="flex-1 bg-card border border-border rounded-xl p-4 flex-row items-center justify-center">
-            <Ionicons name="logo-apple" size={20} color="white" />
-            <Text className="text-white ml-2">Apple</Text>
+          <Pressable style={[styles.socialButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="logo-apple" size={20} color={colors.text} />
+            <Text style={[styles.socialText, { color: colors.text }]}>Apple</Text>
           </Pressable>
         </View>
 
         {/* Sign Up Link */}
-        <View className="flex-row justify-center">
-          <Text className="text-muted-foreground">Don't have an account? </Text>
+        <View style={styles.signupLink}>
+          <Text style={[styles.signupText, { color: colors.muted }]}>Don't have an account? </Text>
           <Pressable onPress={() => router.push('/(auth)/signup')}>
-            <Text className="text-primary font-medium">Sign Up</Text>
+            <Text style={[styles.signupLinkText, { color: colors.primary }]}>Sign Up</Text>
           </Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    justifyContent: 'center',
+    maxWidth: 480,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  errorText: {
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  form: {
+    marginBottom: 24,
+  },
+  label: {
+    fontWeight: '500',
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  passwordContainer: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 48,
+    marginBottom: 0,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 14,
+    top: 14,
+  },
+  loginButton: {
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 18,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 13,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 24,
+  },
+  socialButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  socialText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  signupLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  signupText: {
+    fontSize: 14,
+  },
+  signupLinkText: {
+    fontWeight: '500',
+    fontSize: 14,
+  },
+});

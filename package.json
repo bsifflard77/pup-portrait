@@ -21,6 +21,7 @@
     "db:generate": "cd supabase && supabase gen types typescript --local > ../packages/shared/src/database.types.ts"
   },
   "devDependencies": {
+    "supabase": "^2.72.8",
     "turbo": "^2.3.0"
   },
   "packageManager": "npm@10.2.0",

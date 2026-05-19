@@ -19,8 +19,8 @@ export const PRICING = {
     customBackgrounds: false,
   },
   PREMIUM: {
-    monthlyPrice: 799, // $7.99 in cents
-    yearlyPrice: 5999, // $59.99 in cents (25% savings)
+    monthlyPrice: 999, // $9.99 in cents
+    yearlyPrice: 7999, // $79.99 in cents (~33% savings)
     dailyLimit: 15, // 15 per day ("unlimited" marketing, but capped to prevent abuse)
     resolution: 1024,
     hasWatermark: false,
@@ -29,7 +29,7 @@ export const PRICING = {
     customBackgrounds: true,
   },
   LIFETIME: {
-    price: 7999, // $79.99 in cents
+    price: 2999, // $29.99 in cents
     dailyLimit: 15, // Same daily cap as premium
     resolution: 1024,
     hasWatermark: false,
