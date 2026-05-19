@@ -1,8 +1,24 @@
 // Supabase Edge Function: Generate Portrait
-// Calls Nano Banana (Google Gemini) API to generate dog portraits
+//
+// 2026-05-19 relaunch:
+//   * Default engine is now Nano Banana 2 (Gemini 3.1 Flash Image).
+//   * Realism-tier and lifetime users can toggle Flux Kontext Pro per
+//     generation via `useRealism: true` in the request body.
+//   * Photo-upload pack callers pass `referenceImagePath` pointing at a
+//     file inside the `pet-uploads` Supabase Storage bucket. The function
+//     downloads it, base64-encodes, and forwards as the reference image
+//     for identity-preserving generation.
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import {
+  generateWithNanoBanana2,
+  generateWithFluxKontextPro,
+  buildIdentityPreservingPrompt,
+  base64ToBytes,
+  bytesToBase64,
+  type GenerationResult,
+} from '../_shared/image-gen.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +33,9 @@ interface GenerateRequest {
   themePrompt?: string;
   isGuest?: boolean;
   deviceFingerprint?: string;
+  // 2026-05-19 relaunch additions:
+  referenceImagePath?: string; // path inside `pet-uploads` storage bucket
+  useRealism?: boolean;        // route through Flux Kontext Pro (realism/lifetime only)
 }
 
 const DOG_NAMES = [
@@ -26,6 +45,8 @@ const DOG_NAMES = [
 ];
 
 // Tier limits configuration
+// 2026-05-19 relaunch: added PACK (one-time 12-portrait pack from upload)
+// and REALISM (annual sub with Flux Kontext Pro toggle).
 const LIMITS = {
   GUEST: {
     total: 1, // 1 portrait ever
@@ -33,13 +54,22 @@ const LIMITS = {
   FREE: {
     weekly: 5, // 5 per week
   },
+  PACK: {
+    perPack: 12, // 12 portraits per Pack purchase
+  },
   PREMIUM: {
     daily: 15, // 15 per day (marketed as "unlimited")
+  },
+  REALISM: {
+    daily: 15, // Same daily cap as premium
   },
   LIFETIME: {
     daily: 15, // Same as premium
   },
 };
+
+// Tiers that share the "daily cap" rate-limit path.
+const DAILY_CAP_TIERS = new Set(['premium', 'realism', 'lifetime']);
 
 // Helper to get start of week (Monday) in UTC
 function getStartOfWeek(): Date {
@@ -68,7 +98,11 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const googleAiKey = Deno.env.get('GOOGLE_AI_API_KEY')!;
+    // GOOGLE_AI_API_KEY and FAL_AI_API_KEY are read inside the engine helpers
+    // (see _shared/image-gen.ts). We just sanity-check the Google one here.
+    if (!Deno.env.get('GOOGLE_AI_API_KEY')) {
+      console.error('GOOGLE_AI_API_KEY is not configured');
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -89,9 +123,10 @@ serve(async (req: Request) => {
         console.log('AUTHENTICATED USER:', userId, 'EMAIL:', user.email);
 
         // Get user profile
+        // 2026-05-19: select pack_credits as well to support the Pack tier.
         const { data: profile } = await supabase
           .from('profiles')
-          .select('subscription_tier, weekly_generations_used, weekly_reset_at, daily_generations_used, daily_reset_at, lifetime_credits')
+          .select('subscription_tier, weekly_generations_used, weekly_reset_at, daily_generations_used, daily_reset_at, lifetime_credits, pack_credits')
           .eq('id', userId)
           .single();
 
@@ -143,8 +178,26 @@ serve(async (req: Request) => {
             }
           }
 
-          // Handle PREMIUM/LIFETIME tier (daily limits)
-          if (userTier === 'premium' || userTier === 'lifetime') {
+          // Handle PACK tier — pack_credits gate, no time-based limit
+          if (userTier === 'pack') {
+            const packCredits = profile.pack_credits ?? 0;
+            usageCount = 0;
+            usagePeriod = 'in your pack';
+            if (packCredits <= 0) {
+              return new Response(
+                JSON.stringify({
+                  error: 'Pack used',
+                  code: 'PACK_EXHAUSTED',
+                  message: 'You\'ve used all the portraits in your Pack. Buy another or upgrade to Premium for unlimited.',
+                  remaining: 0,
+                }),
+                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+
+          // Handle PREMIUM / REALISM / LIFETIME tier (daily limits)
+          if (DAILY_CAP_TIERS.has(userTier)) {
             const dayStart = getStartOfDay();
             const dayStartTime = dayStart.getTime();
             const resetTime = profile.daily_reset_at ? new Date(profile.daily_reset_at).getTime() : 0;
@@ -162,8 +215,11 @@ serve(async (req: Request) => {
 
             usagePeriod = 'today';
 
-            // Check daily limit for premium/lifetime
-            const dailyLimit = userTier === 'lifetime' ? LIMITS.LIFETIME.daily : LIMITS.PREMIUM.daily;
+            // Check daily limit for premium/realism/lifetime
+            const dailyLimit =
+              userTier === 'lifetime' ? LIMITS.LIFETIME.daily :
+              userTier === 'realism' ? LIMITS.REALISM.daily :
+              LIMITS.PREMIUM.daily;
             if (usageCount >= dailyLimit) {
               return new Response(
                 JSON.stringify({
@@ -195,7 +251,7 @@ serve(async (req: Request) => {
 
     // Parse request body
     const body: GenerateRequest = await req.json();
-    const { breed, color, background, style = 'realistic', themePrompt, isGuest, deviceFingerprint } = body;
+    const { breed, color, background, style = 'realistic', themePrompt, isGuest, deviceFingerprint, referenceImagePath, useRealism } = body;
 
     // Handle guest user
     if (!userId && isGuest) {
@@ -225,9 +281,15 @@ serve(async (req: Request) => {
       }
     }
 
-    // Determine resolution based on tier
-    const resolution = userTier === 'free' || (!userId && isGuest) ? 512 : 1024;
-    const isPremium = userTier === 'premium' || userTier === 'lifetime';
+    // 2026-05-19: free/guest = 1024 (Nano Banana 2 minimum), paid = 2048.
+    // The old 512px tier was a workaround for Gemini 2.0 Flash limits; Nano
+    // Banana 2's 1K output is sharper than the old 512 anyway.
+    const resolution: 1024 | 2048 = (userTier === 'free' || (!userId && isGuest)) ? 1024 : 2048;
+    const isPremium = userTier === 'premium' || userTier === 'realism' || userTier === 'lifetime' || userTier === 'pack';
+
+    // Realism toggle is gated to realism/lifetime tiers only.
+    const useRealismEngine =
+      useRealism === true && (userTier === 'realism' || userTier === 'lifetime');
 
     // Build the prompt
     const breedText = breed === 'random'
@@ -249,60 +311,99 @@ serve(async (req: Request) => {
     // Build theme text if provided
     const themeText = themePrompt ? ` Theme: ${themePrompt}.` : '';
 
-    const prompt = `A beautiful portrait of a ${breedText}${colorText}, ${stylePrompts[style]}. ` +
-      `The dog has a friendly, happy expression with bright eyes. ` +
-      `Background: ${backgroundText}.${themeText} ` +
-      `High quality, detailed, centered composition.`;
-
-    // Call Gemini 2.0 Flash Experimental for image generation
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${googleAiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            responseModalities: ["Text", "Image"]
-          }
-        })
+    // 2026-05-19 relaunch: if the caller supplied a referenceImagePath, fetch
+    // the photo from the `pet-uploads` bucket and route generation through
+    // image-to-image identity preservation. Free/guest tiers cannot supply
+    // a reference image (gated below before this point in production builds —
+    // for now we just refuse to honor it).
+    let referenceImageBase64: string | undefined;
+    let referenceImageMimeType: string | undefined;
+    if (referenceImagePath && userId && (userTier !== 'free')) {
+      const { data: imageBlob, error: dlErr } = await supabase.storage
+        .from('pet-uploads')
+        .download(referenceImagePath);
+      if (dlErr || !imageBlob) {
+        console.error('Failed to download reference image:', dlErr);
+        return new Response(
+          JSON.stringify({ error: 'reference_not_found', message: 'Reference image not found or expired (uploads are auto-deleted after 24 hours).' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    );
-
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', errorText);
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+      const buf = new Uint8Array(await imageBlob.arrayBuffer());
+      referenceImageBase64 = bytesToBase64(buf);
+      referenceImageMimeType = imageBlob.type || 'image/jpeg';
     }
 
-    const geminiData = await geminiResponse.json();
-
-    // Extract image data from Gemini response
-    const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(
-      (part: any) => part.inlineData?.mimeType?.startsWith('image/')
-    );
-    const imageData = imagePart?.inlineData?.data;
-
-    if (!imageData) {
-      console.error('Gemini response:', JSON.stringify(geminiData));
-      throw new Error('No image generated from Gemini');
+    // Build the final prompt. With a reference image, use the identity-
+    // preserving template; without one, use the legacy breed-driven prompt.
+    let prompt: string;
+    if (referenceImageBase64) {
+      const stylePart = `${stylePrompts[style]}. Background: ${backgroundText}.${themeText}`;
+      prompt = buildIdentityPreservingPrompt(stylePart);
+    } else {
+      prompt = `A beautiful portrait of a ${breedText}${colorText}, ${stylePrompts[style]}. ` +
+        `The dog has a friendly, happy expression with bright eyes. ` +
+        `Background: ${backgroundText}.${themeText} ` +
+        `High quality, detailed, centered composition.`;
     }
+
+    // Run the generation through the selected engine.
+    let result: GenerationResult;
+    try {
+      if (useRealismEngine) {
+        result = await generateWithFluxKontextPro({
+          prompt,
+          resolution,
+          referenceImageBase64,
+          referenceImageMimeType,
+        });
+      } else {
+        result = await generateWithNanoBanana2({
+          prompt,
+          resolution,
+          referenceImageBase64,
+          referenceImageMimeType,
+        });
+      }
+    } catch (genErr) {
+      console.error('Generation failed on primary engine:', genErr);
+      // Fall back from Flux to Nano Banana 2 if the realism engine errors out;
+      // free/paid users always get *something* back rather than a failure.
+      if (useRealismEngine) {
+        console.log('Falling back to Nano Banana 2 after Flux Kontext Pro failure');
+        result = await generateWithNanoBanana2({
+          prompt,
+          resolution,
+          referenceImageBase64,
+          referenceImageMimeType,
+        });
+      } else {
+        throw genErr;
+      }
+    }
+
+    const imageData = result.imageBase64;
+
+    console.log(JSON.stringify({
+      event: 'portrait_generated',
+      userId,
+      tier: userTier,
+      engine: result.engine,
+      resolution,
+      latencyMs: result.latencyMs,
+      hasReferenceImage: Boolean(referenceImageBase64),
+    }));
 
     // Upload to Supabase Storage
-    const imageBuffer = Uint8Array.from(atob(imageData), c => c.charCodeAt(0));
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+    const imageBuffer = base64ToBytes(imageData);
+    const ext = result.mimeType === 'image/jpeg' ? 'jpg' : 'png';
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
     const filePath = userId ? `portraits/${userId}/${fileName}` : `portraits/guest/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('portraits')
       .upload(filePath, imageBuffer, {
-        contentType: 'image/png',
+        contentType: result.mimeType,
         upsert: false
       });
 
@@ -334,6 +435,9 @@ serve(async (req: Request) => {
         resolution,
         is_premium: isPremium,
         is_guest: !userId && isGuest,
+        // 2026-05-19 relaunch: track engine + photo-upload flag.
+        engine: result.engine,
+        from_photo_upload: Boolean(referenceImageBase64),
       })
       .select()
       .single();
@@ -366,8 +470,8 @@ serve(async (req: Request) => {
         if (rpcError) {
           console.error('Failed to increment total generations:', rpcError);
         }
-      } else if (userTier === 'premium' || userTier === 'lifetime') {
-        // Use atomic increment for daily count
+      } else if (DAILY_CAP_TIERS.has(userTier)) {
+        // premium / realism / lifetime — daily cap.
         const { data: incrementData, error: incrementError } = await supabase
           .rpc('increment_daily_generations', { p_user_id: userId });
 
@@ -392,6 +496,21 @@ serve(async (req: Request) => {
           if (creditError) {
             console.error('Failed to decrement lifetime credits:', creditError);
           }
+        }
+      } else if (userTier === 'pack') {
+        // Pack tier — decrement one portrait credit. The credit field is
+        // `pack_credits` and counts INDIVIDUAL PORTRAITS remaining in the
+        // user's purchased pack, not packs themselves. (Pack purchase adds
+        // 12 to pack_credits; each generation subtracts 1.) Note: when the
+        // pack is fully consumed, a Stripe webhook or a daily job downgrades
+        // the user's tier back to `free` so they aren't stuck on `pack`.
+        const { error: packErr } = await supabase.rpc('decrement_pack_credits', { p_user_id: userId, p_amount: 1 });
+        if (packErr) {
+          console.error('Failed to decrement pack_credits:', packErr);
+        }
+        const { error: rpcError } = await supabase.rpc('increment_total_generations', { user_id: userId });
+        if (rpcError) {
+          console.error('Failed to increment total generations:', rpcError);
         }
       }
     }
@@ -418,10 +537,22 @@ serve(async (req: Request) => {
     } else if (userTier === 'free') {
       remainingGenerations = Math.max(0, LIMITS.FREE.weekly - usageCount);
       limit = LIMITS.FREE.weekly;
-    } else if (userTier === 'premium' || userTier === 'lifetime') {
-      const dailyLimit = userTier === 'lifetime' ? LIMITS.LIFETIME.daily : LIMITS.PREMIUM.daily;
+    } else if (DAILY_CAP_TIERS.has(userTier)) {
+      const dailyLimit =
+        userTier === 'lifetime' ? LIMITS.LIFETIME.daily :
+        userTier === 'realism' ? LIMITS.REALISM.daily :
+        LIMITS.PREMIUM.daily;
       remainingGenerations = Math.max(0, dailyLimit - usageCount);
       limit = dailyLimit;
+    } else if (userTier === 'pack') {
+      // Re-read pack_credits since we just decremented it.
+      const { data: refreshed } = await supabase
+        .from('profiles')
+        .select('pack_credits')
+        .eq('id', userId)
+        .single();
+      remainingGenerations = refreshed?.pack_credits ?? 0;
+      limit = LIMITS.PACK.perPack;
     }
 
     return new Response(

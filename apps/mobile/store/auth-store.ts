@@ -54,6 +54,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 weeklyGenerationsUsed: profile.weekly_generations_used || 0,
                 weeklyResetAt: profile.weekly_reset_at,
                 totalGenerations: profile.total_generations,
+                // 2026-05-19: pack_credits drives the Pack tier
+                packCredits: profile.pack_credits || 0,
                 createdAt: profile.created_at,
               },
               isAuthenticated: true,
@@ -97,6 +99,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               weeklyGenerationsUsed: profile.weekly_generations_used || 0,
               weeklyResetAt: profile.weekly_reset_at,
               totalGenerations: profile.total_generations,
+              // 2026-05-19: pack_credits drives the Pack tier
+              packCredits: profile.pack_credits || 0,
               createdAt: profile.created_at,
             },
             isAuthenticated: true,

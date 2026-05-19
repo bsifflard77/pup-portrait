@@ -485,7 +485,7 @@ CRITICAL INFO:
 - Edge Function `generate-portrait` deployed via Dashboard (not CLI)
 - Gemini API: model gemini-2.0-flash-exp, key in URL ?key=${googleAiKey}
 - Config: generationConfig: { responseModalities: ["Text", "Image"] }
-- Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo
+- Google AI API key: stored in Supabase Edge Function secrets as `GOOGLE_AI_API_KEY` (rotated 2026-05-19 — the prior key that was checked into this file has been revoked at console.cloud.google.com)
 - Test user: bsifflard747@gmail.com (ID: 3056dfad-b90a-4e46-a7e8-5e4b48b4c46a)
 
 CURRENT ISSUE (Ready to Test):

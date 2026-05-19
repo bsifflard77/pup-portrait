@@ -31,6 +31,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="upload"
+        options={{
+          title: 'Your Dog',
+          headerTitle: 'Send Your Pup on an Adventure',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="camera" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="gallery"
         options={{
           title: 'Gallery',

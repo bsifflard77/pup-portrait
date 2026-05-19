@@ -18,39 +18,75 @@ export const PRICING = {
     customColors: false,
     customBackgrounds: false,
   },
-  PREMIUM: {
-    monthlyPrice: 999, // $9.99 in cents
-    yearlyPrice: 7999, // $79.99 in cents (~33% savings)
-    dailyLimit: 15, // 15 per day ("unlimited" marketing, but capped to prevent abuse)
-    resolution: 1024,
+  // 2026-05-19 relaunch: $9.99 one-time, 12 portraits from one uploaded
+  // photo. Captures the gift/casual buyer segment that subscriptions miss.
+  PACK: {
+    price: 999, // $9.99 in cents
+    portraitsPerPack: 12,
+    resolution: 2048,
     hasWatermark: false,
     processingPriority: 'priority' as const,
     customColors: true,
     customBackgrounds: true,
+    canUploadPhoto: true,
+    canUseRealism: false,
+  },
+  PREMIUM: {
+    monthlyPrice: 599, // $5.99 in cents (was $9.99 — undercuts DreamPets)
+    yearlyPrice: 2999, // $29.99 in cents (~58% savings vs monthly)
+    dailyLimit: 15, // 15 per day ("unlimited" marketing, but capped to prevent abuse)
+    resolution: 2048,
+    hasWatermark: false,
+    processingPriority: 'priority' as const,
+    customColors: true,
+    customBackgrounds: true,
+    canUploadPhoto: true,
+    canUseRealism: false,
+  },
+  // 2026-05-19 relaunch: $49.99/yr Premium Annual + Realism — unlocks
+  // Flux Kontext Pro ultra-realistic generation as a toggle per portrait.
+  REALISM: {
+    yearlyPrice: 4999, // $49.99 in cents
+    dailyLimit: 15,
+    resolution: 2048,
+    hasWatermark: false,
+    processingPriority: 'priority' as const,
+    customColors: true,
+    customBackgrounds: true,
+    canUploadPhoto: true,
+    canUseRealism: true,
   },
   LIFETIME: {
-    price: 2999, // $29.99 in cents
+    price: 4999, // $49.99 in cents (was $29.99 — was cannibalizing subs)
     dailyLimit: 15, // Same daily cap as premium
-    resolution: 1024,
+    resolution: 2048,
     hasWatermark: false,
     processingPriority: 'priority' as const,
     customColors: true,
     customBackgrounds: true,
+    canUploadPhoto: true,
+    canUseRealism: false,
   },
 } as const;
 
 // Stripe price IDs (to be configured in Stripe Dashboard)
 export const STRIPE_PRICES = {
+  PACK: process.env.STRIPE_PRICE_PACK || 'price_pack',
   PREMIUM_MONTHLY: process.env.STRIPE_PRICE_PREMIUM_MONTHLY || 'price_premium_monthly',
   PREMIUM_YEARLY: process.env.STRIPE_PRICE_PREMIUM_YEARLY || 'price_premium_yearly',
+  REALISM_YEARLY: process.env.STRIPE_PRICE_REALISM_YEARLY || 'price_realism_yearly',
   LIFETIME: process.env.STRIPE_PRICE_LIFETIME || 'price_lifetime',
 } as const;
 
 // Helper functions
 export function getTierConfig(tier: SubscriptionTier) {
   switch (tier) {
+    case 'pack':
+      return PRICING.PACK;
     case 'premium':
       return PRICING.PREMIUM;
+    case 'realism':
+      return PRICING.REALISM;
     case 'lifetime':
       return PRICING.LIFETIME;
     default:
@@ -58,16 +94,29 @@ export function getTierConfig(tier: SubscriptionTier) {
   }
 }
 
+// Tiers that should be treated as "paying customer" — bypass weekly cap,
+// use daily cap instead, get 2K resolution and no watermark.
+const PAID_TIERS: ReadonlyArray<SubscriptionTier> = ['premium', 'realism', 'lifetime'];
+
+export function isPaidTier(tier: SubscriptionTier): boolean {
+  return PAID_TIERS.includes(tier);
+}
+
 export function canGenerate(
   tier: SubscriptionTier,
   usageCount: number,
-  isGuest: boolean = false
+  isGuest: boolean = false,
+  packCredits: number = 0
 ): boolean {
   if (isGuest) {
     return usageCount < PRICING.GUEST.totalLimit;
   }
-  if (tier === 'premium' || tier === 'lifetime') {
+  if (isPaidTier(tier)) {
     return usageCount < PRICING.PREMIUM.dailyLimit;
+  }
+  if (tier === 'pack') {
+    // Pack users can generate as long as they have pack credits left.
+    return packCredits > 0;
   }
   // Free tier: 5/week
   return usageCount < PRICING.FREE.weeklyLimit;
@@ -76,13 +125,17 @@ export function canGenerate(
 export function getRemainingGenerations(
   tier: SubscriptionTier,
   usageCount: number,
-  isGuest: boolean = false
+  isGuest: boolean = false,
+  packCredits: number = 0
 ): number {
   if (isGuest) {
     return Math.max(0, PRICING.GUEST.totalLimit - usageCount);
   }
-  if (tier === 'premium' || tier === 'lifetime') {
+  if (isPaidTier(tier)) {
     return Math.max(0, PRICING.PREMIUM.dailyLimit - usageCount);
+  }
+  if (tier === 'pack') {
+    return Math.max(0, packCredits * PRICING.PACK.portraitsPerPack);
   }
   // Free tier: 5/week
   return Math.max(0, PRICING.FREE.weeklyLimit - usageCount);
@@ -90,7 +143,8 @@ export function getRemainingGenerations(
 
 export function getUsagePeriodLabel(tier: SubscriptionTier, isGuest: boolean = false): string {
   if (isGuest) return 'trial';
-  if (tier === 'premium' || tier === 'lifetime') return 'today';
+  if (isPaidTier(tier)) return 'today';
+  if (tier === 'pack') return 'in your pack';
   return 'this week';
 }
 
@@ -100,6 +154,16 @@ export function getResolution(tier: SubscriptionTier): number {
 
 export function hasWatermark(tier: SubscriptionTier): boolean {
   return getTierConfig(tier).hasWatermark;
+}
+
+// 2026-05-19: photo upload feature is gated to any paying tier.
+export function canUploadPhoto(tier: SubscriptionTier): boolean {
+  return tier === 'pack' || isPaidTier(tier);
+}
+
+// 2026-05-19: Flux Kontext Pro Realism toggle is realism-tier-only.
+export function canUseRealism(tier: SubscriptionTier): boolean {
+  return tier === 'realism' || tier === 'lifetime';
 }
 
 export function formatPrice(cents: number): string {
@@ -313,12 +377,12 @@ export const FEATURES = {
 } as const;
 
 export function canUseAspectRatio(tier: SubscriptionTier, ratioId: AspectRatioId): boolean {
-  if (tier === 'premium' || tier === 'lifetime') return true;
+  if (tier === 'pack' || isPaidTier(tier)) return true;
   return FEATURES.FREE.aspectRatios.includes(ratioId);
 }
 
 export function requiresBrandedSharing(tier: SubscriptionTier): boolean {
-  if (tier === 'premium' || tier === 'lifetime') return false;
+  if (tier === 'pack' || isPaidTier(tier)) return false;
   return true;
 }
 
@@ -627,13 +691,13 @@ export const PREMIUM_THEMES: Theme[] = ALL_THEMES.filter(t => t.isPremium);
 
 // Check if a user can use a specific theme based on their tier
 export function canUseTheme(tier: SubscriptionTier, theme: Theme): boolean {
-  if (tier === 'premium' || tier === 'lifetime') return true;
+  if (tier === 'pack' || isPaidTier(tier)) return true;
   return !theme.isPremium;
 }
 
 // Get available themes for a user's tier
 export function getAvailableThemes(tier: SubscriptionTier): Theme[] {
-  if (tier === 'premium' || tier === 'lifetime') return ALL_THEMES;
+  if (tier === 'pack' || isPaidTier(tier)) return ALL_THEMES;
   return FREE_THEMES;
 }
 
@@ -647,3 +711,34 @@ export function getFeaturedThemesForTier(
     .filter(t => isThemeInSeason(t))
     .slice(0, limit);
 }
+
+// ============================================
+// 2026-05-19 RELAUNCH — PHOTO UPLOAD PACK THEMES
+// ============================================
+// 12 themed scenes for the "Send Your Pup on an Adventure" pack feature.
+// Powered by Nano Banana 2 (Gemini 3.1 Flash Image) with identity preservation
+// from a user-uploaded reference photo. See packages/shared/src/pack-themes.ts
+// for the prompt templates and ordering used by the generate-pack Edge Function.
+
+export interface PackTheme {
+  id: string;
+  label: string;
+  icon: string;
+  // Style descriptor appended to the identity-preservation prompt template.
+  promptStyle: string;
+}
+
+export const PACK_THEMES: PackTheme[] = [
+  { id: 'watercolor-sunrise', label: 'Watercolor Sunrise', icon: 'sunny-outline', promptStyle: 'soft watercolor painting, golden hour sunrise lighting, dreamy atmosphere, gentle brushstrokes' },
+  { id: 'renaissance-noble', label: 'Renaissance Noble', icon: 'medal-outline', promptStyle: 'oil painting in the style of a 16th century Dutch master, regal pose, dark velvet background, dramatic chiaroscuro lighting' },
+  { id: 'pixar-sidekick', label: 'Pixar Sidekick', icon: 'happy-outline', promptStyle: '3D animated character in the style of Pixar, expressive eyes, soft warm lighting, slight cartoon stylization' },
+  { id: 'astronaut-moon', label: 'Astronaut on the Moon', icon: 'rocket-outline', promptStyle: 'wearing a detailed astronaut suit, standing on the lunar surface, Earth in the background, photorealistic' },
+  { id: 'pop-art', label: 'Pop Art', icon: 'color-palette-outline', promptStyle: 'Andy Warhol style pop art, bold flat colors, halftone dots, 4-color quadrant composition' },
+  { id: 'street-graffiti', label: 'Street Graffiti', icon: 'brush-outline', promptStyle: 'spray-painted graffiti mural on a brick wall, vibrant urban art style, drips and texture' },
+  { id: 'pencil-sketch', label: 'Pencil Sketch', icon: 'pencil-outline', promptStyle: 'detailed graphite pencil sketch on cream paper, crosshatching shading, artist signature in the corner' },
+  { id: 'cyberpunk-neon', label: 'Cyberpunk Neon', icon: 'flash-outline', promptStyle: 'cyberpunk style with neon city background, rain-slicked streets, pink and cyan rim lighting, futuristic' },
+  { id: 'studio-ghibli', label: 'Studio Ghibli', icon: 'flower-outline', promptStyle: 'anime watercolor in the style of Studio Ghibli, soft pastoral background, dreamy and warm' },
+  { id: 'royal-portrait', label: 'Royal Portrait', icon: 'ribbon-outline', promptStyle: 'formal royal portrait in regal attire, crown or medal, ornate gold frame, palace background' },
+  { id: 'holiday-festive', label: 'Holiday Festive', icon: 'gift-outline', promptStyle: 'cozy Christmas scene by a fireplace, wearing a red sweater, twinkling lights, snowy window' },
+  { id: 'beach-vacation', label: 'Beach Vacation', icon: 'umbrella-outline', promptStyle: 'on a tropical beach, wearing sunglasses, palm trees, turquoise water, golden sand, sunny day' },
+];
