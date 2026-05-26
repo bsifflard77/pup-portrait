@@ -86,10 +86,10 @@ export default function ProfilePage() {
             <Text style={[styles.statNumber, { color: colors.primary }]}>
               {isPremium
                 ? `${Math.max(0, PRICING.PREMIUM.dailyLimit - user.dailyGenerationsUsed)}`
-                : `${Math.max(0, PRICING.FREE.weeklyLimit - user.weeklyGenerationsUsed)}`}
+                : `${Math.max(0, PRICING.FREE.freeTotalImages - user.freeImagesUsed)}`}
             </Text>
             <Text style={[styles.statLabel, { color: colors.muted }]}>
-              {isPremium ? 'Today Remaining' : 'This Week'}
+              {isPremium ? 'Today Remaining' : 'Free Left'}
             </Text>
           </View>
         </View>

@@ -63,14 +63,22 @@ export default function HomePage() {
   }, [breedSearch]);
   const tier = user?.subscriptionTier || 'free';
 
-  // Get usage info based on tier
+  // Get usage info based on tier. Free tier is now a one-time offer (6 images)
+  // tracked by freeImagesUsed/freeOfferUsed rather than a weekly counter.
   const usageCount = tier === 'free'
-    ? (user?.weeklyGenerationsUsed || 0)
+    ? (user?.freeImagesUsed || 0)
     : (user?.dailyGenerationsUsed || 0);
 
-  const remaining = remainingGenerations ?? getRemainingGenerations(tier, usageCount);
+  const remaining = remainingGenerations ?? getRemainingGenerations(
+    tier,
+    usageCount,
+    false,
+    user?.packCredits ?? 0,
+    user?.freeOfferUsed ?? false,
+    user?.freeImagesUsed ?? 0
+  );
   const usagePeriod = getUsagePeriodLabel(tier);
-  const limit = tier === 'free' ? PRICING.FREE.weeklyLimit : PRICING.PREMIUM.dailyLimit;
+  const limit = tier === 'free' ? PRICING.FREE.freeTotalImages : PRICING.PREMIUM.dailyLimit;
 
   const canGenerate = isPremium || (remaining !== null && remaining > 0);
 

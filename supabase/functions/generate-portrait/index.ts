@@ -19,6 +19,7 @@ import {
   bytesToBase64,
   type GenerationResult,
 } from '../_shared/image-gen.ts';
+import { applyWatermark } from '../_shared/watermark.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,7 +53,8 @@ const LIMITS = {
     total: 1, // 1 portrait ever
   },
   FREE: {
-    weekly: 5, // 5 per week
+    // 2026-05-26: one-time offer — 1 portrait + 5 backgrounds (6 watermarked images).
+    total: 6,
   },
   PACK: {
     perPack: 12, // 12 portraits per Pack purchase
@@ -126,52 +128,27 @@ serve(async (req: Request) => {
         // 2026-05-19: select pack_credits as well to support the Pack tier.
         const { data: profile } = await supabase
           .from('profiles')
-          .select('subscription_tier, weekly_generations_used, weekly_reset_at, daily_generations_used, daily_reset_at, lifetime_credits, pack_credits')
+          .select('subscription_tier, weekly_generations_used, weekly_reset_at, daily_generations_used, daily_reset_at, lifetime_credits, pack_credits, free_offer_used, free_images_used')
           .eq('id', userId)
           .single();
 
         if (profile) {
           userTier = profile.subscription_tier;
 
-          // Handle FREE tier (weekly limits)
+          // Handle FREE tier (2026-05-26 one-time offer: upload your dog →
+          // 1 watermarked portrait + 5 watermarked backgrounds = 6 images,
+          // then paywall. No weekly reset.)
           if (userTier === 'free') {
-            const weekStart = getStartOfWeek();
-            const weekStartTime = weekStart.getTime();
-            const resetTime = profile.weekly_reset_at ? new Date(profile.weekly_reset_at).getTime() : 0;
+            usagePeriod = 'free';
+            usageCount = profile.free_images_used || 0;
 
-            console.log('FREE tier check:', {
-              weekStart: weekStart.toISOString(),
-              weekStartTime,
-              resetDate: profile.weekly_reset_at || 'null',
-              resetTime,
-              weekly_generations_used: profile.weekly_generations_used,
-              needsReset: resetTime < weekStartTime
-            });
-
-            // Check if weekly reset needed (compare timestamps, not Date objects)
-            if (resetTime < weekStartTime) {
-              console.log('Resetting weekly counter to 0');
-              await supabase
-                .from('profiles')
-                .update({ weekly_generations_used: 0, weekly_reset_at: weekStart.toISOString() })
-                .eq('id', userId);
-              usageCount = 0;
-            } else {
-              usageCount = profile.weekly_generations_used || 0;
-              console.log('Using existing usageCount:', usageCount);
-            }
-
-            usagePeriod = 'this week';
-
-            // Check weekly limit for free tier
-            if (usageCount >= LIMITS.FREE.weekly) {
+            if (profile.free_offer_used || usageCount >= LIMITS.FREE.total) {
               return new Response(
                 JSON.stringify({
-                  error: 'Weekly limit reached',
-                  code: 'WEEKLY_LIMIT_EXCEEDED',
-                  message: `You've used all ${LIMITS.FREE.weekly} free portraits this week. Upgrade to Premium for more!`,
+                  error: 'Free offer used',
+                  code: 'FREE_OFFER_USED',
+                  message: "You've used your free portraits. Get a Pack of 12 for $9.99 to remove the watermark, or go Premium.",
                   remaining: 0,
-                  resetAt: getStartOfWeek().toISOString(),
                 }),
                 { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
               );
@@ -274,7 +251,7 @@ serve(async (req: Request) => {
           JSON.stringify({
             error: 'Guest limit reached',
             code: 'GUEST_LIMIT_EXCEEDED',
-            message: 'Sign up free to get 5 portraits per week!'
+            message: "Sign up free to turn your own dog's photo into portraits!"
           }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -296,8 +273,11 @@ serve(async (req: Request) => {
       ? 'adorable mixed breed dog'
       : breed.replace(/-/g, ' ');
 
+    // 2026-05-26: the free one-time offer includes 5 background variations, so
+    // free users may choose a background (color stays a paid feature).
+    const allowCustomBackground = isPremium || userTier === 'free';
     const colorText = color && isPremium ? ` with ${color} colored fur` : '';
-    const backgroundText = background && isPremium
+    const backgroundText = background && allowCustomBackground
       ? background
       : 'a beautiful park with green grass and trees';
 
@@ -311,14 +291,15 @@ serve(async (req: Request) => {
     // Build theme text if provided
     const themeText = themePrompt ? ` Theme: ${themePrompt}.` : '';
 
-    // 2026-05-19 relaunch: if the caller supplied a referenceImagePath, fetch
+    // 2026-05-26 relaunch: if the caller supplied a referenceImagePath, fetch
     // the photo from the `pet-uploads` bucket and route generation through
-    // image-to-image identity preservation. Free/guest tiers cannot supply
-    // a reference image (gated below before this point in production builds —
-    // for now we just refuse to honor it).
+    // image-to-image identity preservation. Photo upload is now the FREE hook,
+    // so any authenticated user (free or paid) may supply a reference image —
+    // the free one-time limit is enforced by the FREE-tier gate above. Guests
+    // (no userId) still cannot upload.
     let referenceImageBase64: string | undefined;
     let referenceImageMimeType: string | undefined;
-    if (referenceImagePath && userId && (userTier !== 'free')) {
+    if (referenceImagePath && userId) {
       const { data: imageBlob, error: dlErr } = await supabase.storage
         .from('pet-uploads')
         .download(referenceImagePath);
@@ -394,16 +375,27 @@ serve(async (req: Request) => {
       hasReferenceImage: Boolean(referenceImageBase64),
     }));
 
+    // 2026-05-26: bake the watermark into non-premium (free/guest) images so a
+    // free user cannot retrieve a clean copy — removing it is what a paid
+    // purchase buys. Paid tiers (isPremium) are never watermarked. If
+    // watermarking fails we let it throw rather than serve a clean free image.
+    let imageBuffer = base64ToBytes(imageData);
+    let outMimeType = result.mimeType;
+    let ext = result.mimeType === 'image/jpeg' ? 'jpg' : 'png';
+    if (!isPremium) {
+      imageBuffer = await applyWatermark(imageBuffer);
+      outMimeType = 'image/jpeg';
+      ext = 'jpg';
+    }
+
     // Upload to Supabase Storage
-    const imageBuffer = base64ToBytes(imageData);
-    const ext = result.mimeType === 'image/jpeg' ? 'jpg' : 'png';
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
     const filePath = userId ? `portraits/${userId}/${fileName}` : `portraits/guest/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('portraits')
       .upload(filePath, imageBuffer, {
-        contentType: result.mimeType,
+        contentType: outMimeType,
         upsert: false
       });
 
@@ -427,7 +419,7 @@ serve(async (req: Request) => {
         user_id: userId,
         breed: breedText,
         color: isPremium ? color : null,
-        background: isPremium ? background : null,
+        background: allowCustomBackground ? background : null,
         style,
         name: dogName,
         image_url: publicUrl,
@@ -452,17 +444,16 @@ serve(async (req: Request) => {
       console.log(`Updating stats for user ${userId}, tier: ${userTier}`);
 
       if (userTier === 'free') {
-        // Use atomic increment for weekly count
-        const { data: incrementData, error: incrementError } = await supabase
-          .rpc('increment_weekly_generations', { p_user_id: userId });
+        // Atomic increment of the one-time free-image counter. The DB helper
+        // auto-locks free_offer_used once the count reaches 6.
+        const { data: freeCount, error: freeErr } = await supabase
+          .rpc('increment_free_images_used', { p_user_id: userId, p_amount: 1 });
 
-        if (incrementError) {
-          console.error('Failed to increment weekly_generations:', incrementError);
+        if (freeErr) {
+          console.error('Failed to increment free_images_used:', freeErr);
         } else {
-          const result = incrementData?.[0];
-          console.log(`Incremented weekly_generations_used to ${result?.new_count}${result?.was_reset ? ' (reset applied)' : ''}`);
-          // Update usageCount for accurate remaining calculation
-          usageCount = result?.new_count || usageCount + 1;
+          usageCount = typeof freeCount === 'number' ? freeCount : usageCount + 1;
+          console.log(`Incremented free_images_used to ${usageCount}`);
         }
 
         // Increment total generations
@@ -535,8 +526,8 @@ serve(async (req: Request) => {
       remainingGenerations = 0; // Guest used their only one
       limit = LIMITS.GUEST.total;
     } else if (userTier === 'free') {
-      remainingGenerations = Math.max(0, LIMITS.FREE.weekly - usageCount);
-      limit = LIMITS.FREE.weekly;
+      remainingGenerations = Math.max(0, LIMITS.FREE.total - usageCount);
+      limit = LIMITS.FREE.total;
     } else if (DAILY_CAP_TIERS.has(userTier)) {
       const dailyLimit =
         userTier === 'lifetime' ? LIMITS.LIFETIME.daily :
