@@ -231,7 +231,7 @@ export default function UploadScreen() {
 
         {stage === 'done' && (
           <View style={styles.success}>
-            <Ionicons name="checkmark-circle" size={48} color={colors.success ?? '#1a7c54'} />
+            <Ionicons name="checkmark-circle" size={48} color={'#1a7c54'} />
             <Text style={styles.successText}>{statusMessage}</Text>
             <Pressable style={styles.secondaryButton} onPress={reset}>
               <Text style={styles.secondaryButtonText}>Make another pack</Text>
@@ -241,7 +241,7 @@ export default function UploadScreen() {
 
         {stage === 'error' && (
           <View style={styles.error}>
-            <Ionicons name="warning-outline" size={32} color={colors.error ?? '#c2453a'} />
+            <Ionicons name="warning-outline" size={32} color={'#c2453a'} />
             <Text style={styles.errorText}>{statusMessage}</Text>
             <Pressable style={styles.secondaryButton} onPress={reset}>
               <Text style={styles.secondaryButtonText}>Try again</Text>
@@ -371,7 +371,7 @@ function makeStyles(colors: any) {
     success: { alignItems: 'center', gap: 12, padding: 18 },
     successText: { fontSize: 15, color: colors.text, fontWeight: '500', textAlign: 'center' },
     error: { alignItems: 'center', gap: 10, padding: 18 },
-    errorText: { fontSize: 14, color: colors.error ?? '#c2453a', textAlign: 'center' },
+    errorText: { fontSize: 14, color: '#c2453a', textAlign: 'center' },
     sectionTitle: {
       fontSize: 18,
       fontWeight: '700',

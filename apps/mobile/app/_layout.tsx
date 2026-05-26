@@ -14,7 +14,9 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      {/* 2026-05-20: lightTheme is now navy-on-dark to match WebLanding, so
+          the status bar always needs light (white) content for legibility. */}
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerStyle: {

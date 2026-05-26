@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet, Dimensions, Platform } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet, Dimensions, Platform, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,12 +42,25 @@ export default function HomePage() {
   const [selectedBackground, setSelectedBackground] = useState('');
   const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
   const [showBreedPicker, setShowBreedPicker] = useState(false);
+  const [breedSearch, setBreedSearch] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
 
   const isPremium = user?.subscriptionTier === 'premium' || user?.subscriptionTier === 'lifetime';
-  const availableBreeds = isPremium ? BREEDS : FREE_BREEDS;
+  // 2026-05-20: search across the full breed catalog regardless of tier so a
+  // free user can still discover and request any breed (premium ones surface
+  // an upgrade nudge via the badge). Free users keep their tier-rate limit.
+  const availableBreeds = useMemo(() => {
+    const q = breedSearch.trim().toLowerCase();
+    if (!q) return BREEDS;
+    return BREEDS.filter(
+      (b) =>
+        b.name.toLowerCase().includes(q) ||
+        b.id.toLowerCase().includes(q) ||
+        b.description.toLowerCase().includes(q)
+    );
+  }, [breedSearch]);
   const tier = user?.subscriptionTier || 'free';
 
   // Get usage info based on tier
@@ -286,49 +299,100 @@ export default function HomePage() {
               style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]}
             >
               <Text style={[styles.selectorText, { color: colors.text }]}>{getBreedName(selectedBreed)}</Text>
-              <Ionicons name="chevron-down" size={20} color={colors.muted} />
+              <Ionicons name={showBreedPicker ? 'chevron-up' : 'chevron-down'} size={20} color={colors.muted} />
             </Pressable>
 
             {showBreedPicker && (
               <View style={[styles.pickerDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <ScrollView nestedScrollEnabled style={{ maxHeight: 256 }}>
-                  <Pressable
-                    onPress={() => {
-                      setSelectedBreed('random');
-                      setShowBreedPicker(false);
+                {/* Type-to-search input */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                    gap: 8,
+                  }}
+                >
+                  <Ionicons name="search" size={16} color={colors.muted} />
+                  <TextInput
+                    value={breedSearch}
+                    onChangeText={setBreedSearch}
+                    placeholder="Type a breed — Bernese, Pug, Frenchie…"
+                    placeholderTextColor={colors.muted}
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      color: colors.text,
+                      fontSize: 14,
+                      paddingVertical: 4,
+                      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
                     }}
-                    style={[
-                      styles.pickerItem,
-                      { borderBottomColor: colors.border },
-                      selectedBreed === 'random' && { backgroundColor: colors.primaryLight + '20' }
-                    ]}
-                  >
-                    <Text style={[styles.pickerItemText, { color: colors.text }]}>Surprise Me!</Text>
-                  </Pressable>
-                  {availableBreeds.map((breed) => (
+                  />
+                  {breedSearch.length > 0 && (
+                    <Pressable onPress={() => setBreedSearch('')} hitSlop={8}>
+                      <Ionicons name="close-circle" size={16} color={colors.muted} />
+                    </Pressable>
+                  )}
+                </View>
+
+                <ScrollView nestedScrollEnabled style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
+                  {breedSearch.trim().length === 0 && (
                     <Pressable
-                      key={breed.id}
                       onPress={() => {
-                        setSelectedBreed(breed.id);
+                        setSelectedBreed('random');
                         setShowBreedPicker(false);
+                        setBreedSearch('');
                       }}
                       style={[
                         styles.pickerItem,
                         { borderBottomColor: colors.border },
-                        selectedBreed === breed.id && { backgroundColor: colors.primaryLight + '20' }
+                        selectedBreed === 'random' && { backgroundColor: colors.primaryLight + '20' }
                       ]}
                     >
                       <View style={styles.breedInfo}>
-                        <Text style={[styles.pickerItemText, { color: colors.text }]}>{breed.name}</Text>
-                        <Text style={[styles.breedDesc, { color: colors.muted }]}>{breed.description}</Text>
+                        <Text style={[styles.pickerItemText, { color: colors.text }]}>Surprise Me!</Text>
+                        <Text style={[styles.breedDesc, { color: colors.muted }]}>Let the AI pick a breed at random</Text>
                       </View>
-                      {breed.isPremium && !isPremium && (
-                        <View style={[styles.premiumBadge, { backgroundColor: colors.accent + '20' }]}>
-                          <Text style={[styles.premiumBadgeText, { color: colors.accent }]}>Premium</Text>
-                        </View>
-                      )}
                     </Pressable>
-                  ))}
+                  )}
+                  {availableBreeds
+                    .filter((b) => b.id !== 'random')
+                    .map((breed) => (
+                      <Pressable
+                        key={breed.id}
+                        onPress={() => {
+                          setSelectedBreed(breed.id);
+                          setShowBreedPicker(false);
+                          setBreedSearch('');
+                        }}
+                        style={[
+                          styles.pickerItem,
+                          { borderBottomColor: colors.border },
+                          selectedBreed === breed.id && { backgroundColor: colors.primaryLight + '20' }
+                        ]}
+                      >
+                        <View style={styles.breedInfo}>
+                          <Text style={[styles.pickerItemText, { color: colors.text }]}>{breed.name}</Text>
+                          <Text style={[styles.breedDesc, { color: colors.muted }]}>{breed.description}</Text>
+                        </View>
+                        {breed.isPremium && !isPremium && (
+                          <View style={[styles.premiumBadge, { backgroundColor: colors.primary + '22' }]}>
+                            <Ionicons name="lock-closed" size={10} color={colors.primary} />
+                            <Text style={[styles.premiumBadgeText, { color: colors.primary, marginLeft: 4 }]}>Premium</Text>
+                          </View>
+                        )}
+                      </Pressable>
+                    ))}
+                  {availableBreeds.length === 0 && (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <Text style={{ color: colors.muted, fontSize: 13 }}>
+                        No breeds match “{breedSearch}”. Try a shorter spelling.
+                      </Text>
+                    </View>
+                  )}
                 </ScrollView>
               </View>
             )}

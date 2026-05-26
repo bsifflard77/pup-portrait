@@ -22,25 +22,28 @@ export interface ThemeColors {
   destructive: string;
 }
 
-// Light theme - warm, feminine, vibrant
+// Light theme — 2026-05-20 v3. Navy hero treatment to match WebLanding's
+// premium look: deep navy gradient background, gold CTAs, cream text. The
+// in-app form now reads like a continuation of the landing page instead of a
+// flat cream form.
 export const lightTheme: ThemeColors = {
-  background: '#FFF8F5',
-  backgroundGradientStart: '#FFFFFF',
-  backgroundGradientEnd: '#FFE8E0',
-  card: '#FFFFFF',
-  cardHover: '#FFF0EB',
-  primary: '#E05A70',              // Richer coral/rose - more saturated
-  primaryLight: '#FF7A8A',         // Brighter pink for gradients
-  accent: '#F59E0B',               // Vibrant amber/gold
-  accentGreen: '#10B981',          // Bright emerald green
-  border: '#FFD6CC',               // Peachy border - more visible
-  borderLight: '#FFE4DC',
+  background: '#0F1B35',                 // Monomoy navy
+  backgroundGradientStart: '#0F1B35',    // navy
+  backgroundGradientEnd: '#243557',      // navy3 — subtle vertical fade
+  card: '#1B2A4A',                       // navy2 — card surface
+  cardHover: '#243557',                  // navy3 — hover/active card
+  primary: '#D4A843',                    // Monomoy gold — primary CTA + selected chips
+  primaryLight: '#E5BE5C',               // lighter gold for gradients
+  accent: '#FFF4E6',                     // cream — high-emphasis accent
+  accentGreen: '#10B981',
+  border: '#2D4068',                     // soft navy line
+  borderLight: '#3A4F7E',
   white: '#FFFFFF',
-  text: '#1F1F2E',                 // Darker text for better contrast
-  textSecondary: '#4A4A5C',
-  muted: '#6B6B7D',                // Darker muted for better readability
-  mutedLight: '#8B8B9D',
-  destructive: '#DC2626',
+  text: '#FFF4E6',                       // cream body text
+  textSecondary: '#C9D2E0',              // softer cream/blue-white
+  muted: '#8C9AB5',                      // muted slate-cream
+  mutedLight: '#B8C5DA',
+  destructive: '#F87171',
 };
 
 // Dark theme - original scheme

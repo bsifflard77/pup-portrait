@@ -51,13 +51,16 @@ export async function generateWithNanoBanana2(input: GenerationInput): Promise<G
     });
   }
 
+  // 2026-05-20: the Gemini Generative Language API rejects `imageConfig.resolution`
+  // (only `aspectRatio` is currently accepted). Output is ~1K by default — that's
+  // fine for free/guest, and acceptable for paid until Google exposes the field
+  // again. Resolution is still threaded in for downstream sizing decisions.
   const requestBody = {
     contents: [{ parts }],
     generationConfig: {
       responseModalities: ['IMAGE'],
       imageConfig: {
         aspectRatio: '1:1',
-        resolution: input.resolution === 2048 ? '2K' : '1K',
       },
     },
   };
