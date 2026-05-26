@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/auth-store';
-import '../global.css';
+import { useThemeStore } from '../store/theme-store';
 
 export default function RootLayout() {
   const initialize = useAuthStore((state) => state.initialize);
+  const { mode, colors } = useThemeStore();
 
   useEffect(() => {
     initialize();
@@ -13,18 +14,20 @@ export default function RootLayout() {
 
   return (
     <>
+      {/* 2026-05-20: lightTheme is now navy-on-dark to match WebLanding, so
+          the status bar always needs light (white) content for legibility. */}
       <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#1a1a2e',
+            backgroundColor: colors.card,
           },
-          headerTintColor: '#fff',
+          headerTintColor: colors.text,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
           contentStyle: {
-            backgroundColor: '#0f0f1a',
+            backgroundColor: colors.background,
           },
         }}
       >

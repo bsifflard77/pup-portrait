@@ -1,0 +1,90 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Pup Portrait",
+  "version": "1.0.0",
+  "identifier": "com.monomoystrategies.pupportrait",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devUrl": "http://localhost:8081",
+    "frontendDist": "../../mobile/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Pup Portrait",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": true,
+        "transparent": false,
+        "titleBarStyle": "Visible",
+        "url": "https://app.pup-portrait.com"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' https: data: blob:; connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.fal.ai https://generativelanguage.googleapis.com; script-src 'self' https://*.stripe.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://*.stripe.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "msi", "nsis", "appimage", "deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "GraphicsAndDesign",
+    "shortDescription": "AI dog portraits in seconds",
+    "longDescription": "Pup Portrait turns any dog into beautiful AI art. Upload a photo of your dog and get 12 stunning themed portraits — watercolor, Renaissance, pop art, cyberpunk, and more. Or pick from 100+ breeds for instant stylized portraits.",
+    "copyright": "© 2026 Monomoy Strategies LLC. All rights reserved.",
+    "homepage": "https://pup-portrait.com",
+    "publisher": "Monomoy Strategies LLC",
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "11.0",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": "entitlements.plist"
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "tsp": false,
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://pup-portrait.com/updates/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "dialog": true,
+      "pubkey": "REPLACE_WITH_PUBLIC_KEY_AFTER_RUNNING_TAURI_SIGNER_GENERATE"
+    },
+    "shell": {
+      "open": "^https?://"
+    }
+  }
+}

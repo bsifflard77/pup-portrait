@@ -2,8 +2,17 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// 2026-05-19 relaunch: hardcoded fallback values for production. Both of
+// these are PUBLIC by design — the anon key is meant to be exposed in the
+// client. Hardcoding here works around a Metro/Expo issue where the
+// EXPO_PUBLIC_ env vars from .env weren't being inlined at export time on
+// Windows. The process.env reads stay as the primary path so other envs
+// (dev, staging) keep working.
+const SUPABASE_URL_FALLBACK = 'https://rmalsvaoomhrgflioiqx.supabase.co';
+const SUPABASE_ANON_KEY_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtYWxzdmFvb21ocmdmbGlvaXF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NzEyMTcsImV4cCI6MjA4MDU0NzIxN30.pUkhBzVxpHu8Qsr3hO9pYgZ6_E9X-MatS6Y4KHv5XR0';
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || SUPABASE_URL_FALLBACK;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY_FALLBACK;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing Supabase environment variables. Auth and database features will not work.');
