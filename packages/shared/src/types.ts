@@ -15,6 +15,12 @@ export interface User {
   // Number of unused Portrait Packs (each pack = 12 photo-upload portraits).
   // Added 2026-05-19 for the photo-upload feature.
   packCredits: number;
+  // 2026-05-26 free-tier offer: the free tier is a one-time "upload your dog →
+  // 1 watermarked portrait + 5 watermarked backgrounds" (6 images), then paywall.
+  // freeOfferUsed flips true once the set is delivered; freeImagesUsed counts
+  // 0-6 within the set so a partially failed set can resume without burning it.
+  freeOfferUsed: boolean;
+  freeImagesUsed: number;
   createdAt: string;
 }
 

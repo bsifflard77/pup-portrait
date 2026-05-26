@@ -10,13 +10,25 @@ export const PRICING = {
     customColors: false,
     customBackgrounds: false,
   },
+  // 2026-05-26 relaunch: the free tier is now a ONE-TIME offer — upload your
+  // dog's photo and get 1 watermarked portrait + 5 watermarked background
+  // variations (6 images), then paywall. Replaces the old 5-per-week model.
+  // Photo upload (formerly paid-only) is now the free conversion hook; the
+  // watermark protects the paid product. See
+  // 30_Specs/2026-05-25_Spec_Free-Tier-Offer_Monomoy.md
   FREE: {
-    weeklyLimit: 5, // 5 per week
-    resolution: 512,
+    freePortraits: 1,
+    freeBackgrounds: 5,
+    freeTotalImages: 6, // 1 portrait + 5 backgrounds
+    oneTime: true,
+    weeklyLimit: 5, // DEPRECATED — retained until old call sites migrate off
+    resolution: 1024, // was 512; better free taste, still below paid 2048
     hasWatermark: true,
     processingPriority: 'standard' as const,
     customColors: false,
-    customBackgrounds: false,
+    customBackgrounds: true, // one-time taste of backgrounds in the free flow
+    canUploadPhoto: true, // free is now the upload hook (runtime-gated by freeOfferUsed)
+    canUseRealism: false,
   },
   // 2026-05-19 relaunch: $9.99 one-time, 12 portraits from one uploaded
   // photo. Captures the gift/casual buyer segment that subscriptions miss.
@@ -106,7 +118,8 @@ export function canGenerate(
   tier: SubscriptionTier,
   usageCount: number,
   isGuest: boolean = false,
-  packCredits: number = 0
+  packCredits: number = 0,
+  freeOfferUsed: boolean = false
 ): boolean {
   if (isGuest) {
     return usageCount < PRICING.GUEST.totalLimit;
@@ -118,15 +131,17 @@ export function canGenerate(
     // Pack users can generate as long as they have pack credits left.
     return packCredits > 0;
   }
-  // Free tier: 5/week
-  return usageCount < PRICING.FREE.weeklyLimit;
+  // Free tier: one-time offer (1 portrait + 5 backgrounds). Can generate until used.
+  return !freeOfferUsed;
 }
 
 export function getRemainingGenerations(
   tier: SubscriptionTier,
   usageCount: number,
   isGuest: boolean = false,
-  packCredits: number = 0
+  packCredits: number = 0,
+  freeOfferUsed: boolean = false,
+  freeImagesUsed: number = 0
 ): number {
   if (isGuest) {
     return Math.max(0, PRICING.GUEST.totalLimit - usageCount);
@@ -137,15 +152,16 @@ export function getRemainingGenerations(
   if (tier === 'pack') {
     return Math.max(0, packCredits * PRICING.PACK.portraitsPerPack);
   }
-  // Free tier: 5/week
-  return Math.max(0, PRICING.FREE.weeklyLimit - usageCount);
+  // Free tier: 6 images total (1 portrait + 5 backgrounds), one time only.
+  if (freeOfferUsed) return 0;
+  return Math.max(0, PRICING.FREE.freeTotalImages - freeImagesUsed);
 }
 
 export function getUsagePeriodLabel(tier: SubscriptionTier, isGuest: boolean = false): string {
   if (isGuest) return 'trial';
   if (isPaidTier(tier)) return 'today';
   if (tier === 'pack') return 'in your pack';
-  return 'this week';
+  return 'free'; // one-time free offer
 }
 
 export function getResolution(tier: SubscriptionTier): number {
@@ -156,9 +172,13 @@ export function hasWatermark(tier: SubscriptionTier): boolean {
   return getTierConfig(tier).hasWatermark;
 }
 
-// 2026-05-19: photo upload feature is gated to any paying tier.
-export function canUploadPhoto(tier: SubscriptionTier): boolean {
-  return tier === 'pack' || isPaidTier(tier);
+// 2026-05-26: photo upload is now the FREE conversion hook (one-time,
+// watermarked) in addition to every paid tier. Guests must sign up first —
+// the per-account one-time limit for free is enforced via freeOfferUsed at the
+// call site (see canGenerate). See 30_Specs/2026-05-25_Spec_Free-Tier-Offer_Monomoy.md
+export function canUploadPhoto(tier: SubscriptionTier, isGuest: boolean = false): boolean {
+  if (isGuest) return false;
+  return true;
 }
 
 // 2026-05-19: Flux Kontext Pro Realism toggle is realism-tier-only.
@@ -345,15 +365,16 @@ export const FEATURES = {
     saveToGallery: false,
   },
   FREE: {
-    weeklyGenerations: 5, // 5 per week
+    // 2026-05-26: one-time offer (1 portrait + 5 backgrounds), all watermarked.
+    freeTotalImages: 6,
     aspectRatios: ['square'] as AspectRatioId[],
-    resolution: 512,
+    resolution: 1024, // was 512; better free taste
     watermark: true, // Watermark with "Created with Pup Portrait" + URL
     brandedSharing: true, // Must include branding in share text
     socialSharing: true, // Can share to social media (with branding)
     hdDownload: false,
     customColors: false,
-    customBackgrounds: false,
+    customBackgrounds: true, // one-time taste of backgrounds in the free flow
     premiumBreeds: false,
     premiumThemes: false, // Only Seasons + Holidays
     breedSearch: false, // Dropdown only
