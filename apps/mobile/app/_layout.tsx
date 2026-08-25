@@ -58,6 +58,13 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="pricing"
+          options={{
+            title: 'Pricing',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="privacy"
           options={{
             title: 'Privacy Policy',

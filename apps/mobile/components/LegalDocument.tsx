@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { SiteNav } from './SiteNav';
 
 const PAGE_BG = '#FFF4E6';
 const INK = '#0F1B35';
@@ -144,13 +144,8 @@ export function LegalDocument({ markdown }: { markdown: string }) {
       contentContainerStyle={styles.content}
       testID="legal-document"
     >
+      <SiteNav />
       <View style={styles.inner}>
-        <Pressable onPress={() => router.push('/')} style={styles.brandRow} accessibilityRole="link">
-          <View style={styles.brandMark}>
-            <Ionicons name="paw" size={16} color={GOLD} />
-          </View>
-          <Text style={styles.brandName}>Pup Portrait</Text>
-        </Pressable>
         {body}
         <View style={styles.footerNav}>
           <Pressable onPress={() => router.push('/privacy' as any)}>
@@ -176,32 +171,14 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE_BG,
   },
   content: {
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+    paddingBottom: 32,
     alignItems: 'center',
   },
   inner: {
     width: '100%',
     maxWidth: 720,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 28,
-  },
-  brandMark: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: INK,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandName: {
-    color: INK,
-    fontSize: 16,
-    fontWeight: '700',
+    paddingHorizontal: 24,
+    paddingTop: 32,
   },
   h1: {
     color: INK,

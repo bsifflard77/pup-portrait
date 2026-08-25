@@ -26,6 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/auth-store';
 import { TIERS_DISPLAY } from '../lib/tiers-display';
+import { SiteNav } from './SiteNav';
 
 const COLORS = {
   navy: '#0F1B35',
@@ -78,43 +79,14 @@ export default function WebLanding() {
   const wide = vw >= 1024;
   const styles = makeStyles(wide);
 
-  const go = (path: string) => () => router.push(path);
+  const go = (path: string) => () => router.push(path as any);
 
   return (
     <ScrollView
       style={styles.page}
       contentContainerStyle={[styles.pageContent, { paddingTop: insets.top }]}
     >
-      {/* ============ TOP NAV ============ */}
-      <View style={styles.nav}>
-        <View style={styles.navInner}>
-          <View style={styles.navBrand}>
-            <View style={styles.brandLogo}>
-              <Ionicons name="paw" size={20} color={COLORS.gold} />
-            </View>
-            <Text style={styles.brandName}>Pup Portrait</Text>
-          </View>
-          <View style={styles.navActions}>
-            <Pressable onPress={go('/upgrade')}>
-              <Text style={styles.navLink}>Pricing</Text>
-            </Pressable>
-            {isAuthenticated ? (
-              <Pressable style={styles.navCta} onPress={go('/(tabs)/home')}>
-                <Text style={styles.navCtaText}>Open app</Text>
-              </Pressable>
-            ) : (
-              <>
-                <Pressable onPress={go('/(auth)/login')}>
-                  <Text style={styles.navLink}>Sign in</Text>
-                </Pressable>
-                <Pressable style={styles.navCta} onPress={go('/(auth)/signup')}>
-                  <Text style={styles.navCtaText}>Get started free</Text>
-                </Pressable>
-              </>
-            )}
-          </View>
-        </View>
-      </View>
+      <SiteNav />
 
       {/* ============ HERO ============ */}
       <LinearGradient
@@ -355,29 +327,6 @@ function makeStyles(wide: boolean) {
     page: { flex: 1, backgroundColor: COLORS.cream },
     pageContent: { paddingBottom: 0 },
 
-    /* nav */
-    nav: {
-      position: Platform.OS === 'web' ? ('sticky' as any) : 'relative',
-      top: 0,
-      zIndex: 10,
-      backgroundColor: 'rgba(255,244,230,0.92)',
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.line,
-      ...(Platform.OS === 'web'
-        ? ({ backdropFilter: 'blur(10px)' } as any)
-        : {}),
-    },
-    navInner: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      maxWidth: 1200,
-      width: '100%',
-      alignSelf: 'center',
-      paddingHorizontal: 32,
-      paddingVertical: 18,
-    },
-    navBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     brandLogo: {
       width: 32,
       height: 32,
@@ -386,21 +335,6 @@ function makeStyles(wide: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    brandName: {
-      fontSize: 17,
-      fontWeight: '700',
-      color: COLORS.navy,
-      letterSpacing: -0.3,
-    },
-    navActions: { flexDirection: 'row', alignItems: 'center', gap: 24 },
-    navLink: { fontSize: 14, fontWeight: '500', color: COLORS.ink },
-    navCta: {
-      backgroundColor: COLORS.navy,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-      borderRadius: 8,
-    },
-    navCtaText: { color: COLORS.cream, fontSize: 14, fontWeight: '600' },
 
     /* hero */
     hero: { paddingVertical: wide ? 96 : 64, paddingHorizontal: 32 },
