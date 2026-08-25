@@ -42,22 +42,56 @@ export function SiteNav() {
   const go = (path: string) => () => router.push(path as any);
 
   return (
-    <View style={styles.nav} testID="site-nav">
+    <View
+      style={styles.nav}
+      testID="site-nav"
+      {...(Platform.OS === 'web' ? { className: 'site-nav' } : {})}
+    >
       {Platform.OS === 'web' ? (
         <style
           dangerouslySetInnerHTML={{
             __html: `
-              .site-nav-inner { display: flex; flex-wrap: wrap; width: 100%; box-sizing: border-box; }
+              .site-nav {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+                box-sizing: border-box;
+              }
+              .site-nav-inner,
+              .site-nav-actions,
+              .site-nav-cta {
+                box-sizing: border-box;
+                max-width: 100%;
+              }
+              .site-nav-inner { display: flex; flex-wrap: wrap; width: 100%; }
               @media (max-width: 719px) {
                 .site-nav-inner {
                   flex-direction: column !important;
-                  align-items: flex-start !important;
+                  flex-wrap: nowrap !important;
+                  align-items: stretch !important;
                   justify-content: flex-start !important;
                   padding-left: 16px !important;
                   padding-right: 16px !important;
                   row-gap: 10px !important;
                 }
-                .site-nav-actions { gap: 12px !important; }
+                .site-nav-actions {
+                  display: flex !important;
+                  flex-direction: row !important;
+                  flex-wrap: wrap !important;
+                  width: 100% !important;
+                  min-width: 0 !important;
+                  gap: 10px !important;
+                }
+                /* last-child so the CTA wraps even if Pressable drops className */
+                .site-nav-actions > *:last-child,
+                .site-nav-cta {
+                  flex: 1 0 100% !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  margin-left: 0 !important;
+                  align-items: center !important;
+                  justify-content: center !important;
+                }
               }
             `,
           }}
@@ -83,7 +117,11 @@ export function SiteNav() {
             <Text style={styles.navLink}>Pricing</Text>
           </Pressable>
           {isAuthenticated ? (
-            <Pressable style={styles.navCta} onPress={go('/(tabs)/home')}>
+            <Pressable
+              style={styles.navCta}
+              onPress={go('/(tabs)/home')}
+              {...(Platform.OS === 'web' ? { className: 'site-nav-cta' } : {})}
+            >
               <Text style={styles.navCtaText}>Open app</Text>
             </Pressable>
           ) : (
@@ -91,7 +129,11 @@ export function SiteNav() {
               <Pressable onPress={go('/(auth)/login')} style={styles.navLinkHit}>
                 <Text style={styles.navLink}>Sign in</Text>
               </Pressable>
-              <Pressable style={styles.navCta} onPress={go('/(auth)/signup')}>
+              <Pressable
+                style={styles.navCta}
+                onPress={go('/(auth)/signup')}
+                {...(Platform.OS === 'web' ? { className: 'site-nav-cta' } : {})}
+              >
                 <Text style={styles.navCtaText} numberOfLines={1}>
                   Get started free
                 </Text>
@@ -115,17 +157,17 @@ function makeStyles(compact: boolean) {
       borderBottomWidth: 1,
       borderBottomColor: COLORS.line,
       ...(Platform.OS === 'web'
-        ? ({ backdropFilter: 'blur(10px)', boxSizing: 'border-box' } as any)
+        ? ({ backdropFilter: 'blur(10px)', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100%' } as any)
         : {}),
     },
     navInner: {
       // Always wrap: on web, Dimensions often reports the desktop window
       // while Chrome device-mode is 390px, which is what caused
       // "Pup PortraitPricing" + a clipped CTA on the live homepage.
-      flexDirection: 'row',
+      flexDirection: compact ? 'column' : 'row',
       flexWrap: 'wrap',
       justifyContent: compact ? 'flex-start' : 'space-between',
-      alignItems: 'center',
+      alignItems: compact ? 'stretch' : 'center',
       maxWidth: 1200,
       width: '100%',
       alignSelf: 'center',
@@ -139,7 +181,7 @@ function makeStyles(compact: boolean) {
       alignItems: 'center',
       gap: 10,
       flexShrink: 0,
-      marginRight: 12,
+      marginRight: compact ? 0 : 12,
     },
     brandLogo: {
       width: 32,
@@ -157,10 +199,12 @@ function makeStyles(compact: boolean) {
     },
     navActions: {
       flexDirection: 'row',
-      flexWrap: 'nowrap',
+      flexWrap: 'wrap',
       alignItems: 'center',
-      gap: compact ? 12 : 24,
-      flexShrink: 0,
+      gap: compact ? 10 : 24,
+      flexShrink: 1,
+      minWidth: 0,
+      width: compact ? '100%' : undefined,
     },
     navLinkHit: {
       paddingVertical: 4,
@@ -174,6 +218,9 @@ function makeStyles(compact: boolean) {
       paddingVertical: compact ? 8 : 10,
       borderRadius: 8,
       flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: compact ? '100%' : undefined,
     },
     navCtaText: { color: COLORS.cream, fontSize: 14, fontWeight: '600' },
   });

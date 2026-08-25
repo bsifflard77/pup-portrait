@@ -15,7 +15,7 @@
 - Added Expo web routes `GET /privacy` and `GET /terms` that render HQ markdown from `legal/privacy-policy.md` and `legal/terms-of-service.md` as readable HTML (not an unmatched-route shell).
 - Signup benefit copy: "5 free portraits per week" → "1 watermarked portrait + 5 scenes (one-time)". Signup Terms/Privacy text is now real links to those pages.
 - Create tab counter: "Weekly Portraits" / "N of 6 remaining free" → "Free offer" + "1 watermarked portrait + 5 scenes · N of 6 remaining" (one-time grant, not a weekly refill). Paid SKUs untouched.
-- Mobile header (~390px): stacked `SiteNav` so logo, Pricing, Sign in, and Get started free no longer collide or clip.
+- Mobile header (~390px): stacked `SiteNav` so logo, Pricing, Sign in, and Get started free no longer collide or clip. CTA is a full-width row under 720px (CSS last-child + wrap) so "Get started free" cannot clip even when RN Dimensions reports a desktop width.
 - Added `GET /pricing` using the existing HQ `TIERS_DISPLAY` SKUs. Header Pricing links there. Signed-out plan CTAs go to signup.
 
 ### Verified 2026-08-25 (Expo web localhost:8081)
