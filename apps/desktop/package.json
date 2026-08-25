@@ -1,0 +1,26 @@
+{
+  "name": "@pup-portrait/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pup Portrait desktop app — Tauri 2 wrapper around the web build",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:mac": "tauri build --target universal-apple-darwin --bundles app,dmg",
+    "build:mac-store": "tauri build --target universal-apple-darwin --bundles app",
+    "build:windows": "tauri build --target x86_64-pc-windows-msvc --bundles msi,nsis",
+    "build:linux": "tauri build --target x86_64-unknown-linux-gnu --bundles appimage,deb",
+    "icon": "tauri icon ./src-tauri/icons/icon-source-1024.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.1.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-fs": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "@tauri-apps/plugin-updater": "^2.0.0"
+  }
+}

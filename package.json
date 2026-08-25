@@ -17,10 +17,16 @@
     "mobile:ios": "cd apps/mobile && npm run ios",
     "mobile:android": "cd apps/mobile && npm run android",
     "admin": "cd apps/admin && npm run dev",
+    "desktop": "cd apps/desktop && npm run dev",
+    "desktop:build": "cd apps/desktop && npm run build",
+    "desktop:build:mac": "cd apps/desktop && npm run build:mac",
+    "desktop:build:mac-store": "cd apps/desktop && npm run build:mac-store",
+    "desktop:build:windows": "cd apps/desktop && npm run build:windows",
     "db:migrate": "cd supabase && supabase db push",
     "db:generate": "cd supabase && supabase gen types typescript --local > ../packages/shared/src/database.types.ts"
   },
   "devDependencies": {
+    "supabase": "^2.72.8",
     "turbo": "^2.3.0"
   },
   "packageManager": "npm@10.2.0",

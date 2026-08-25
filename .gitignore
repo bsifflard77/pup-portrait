@@ -61,3 +61,6 @@ ios/Pods/
 # Misc
 *.pem
 .cache/
+
+# Generated marketing assets (regenerated via scripts/generate-marketing-samples.mjs)
+marketing-samples/

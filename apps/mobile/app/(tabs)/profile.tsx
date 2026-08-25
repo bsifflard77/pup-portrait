@@ -1,45 +1,54 @@
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, StyleSheet, Platform, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 import { PRICING, formatPrice } from '@pup-portrait/shared';
+
+const { width: screenWidth } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
+const maxWidth = isWeb ? 480 : screenWidth;
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { colors } = useThemeStore();
 
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/');
+  const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      await logout();
+      router.replace('/');
+    } else {
+      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/');
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   if (!isAuthenticated || !user) {
     return (
-      <View className="flex-1 bg-background items-center justify-center p-8">
-        <Ionicons name="person-circle-outline" size={80} color="#6366f1" />
-        <Text className="text-white text-xl font-semibold mt-4 text-center">
-          Sign In to Continue
-        </Text>
-        <Text className="text-muted-foreground text-center mt-2 mb-6">
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <Ionicons name="person-circle-outline" size={80} color={colors.primary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>Sign In to Continue</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
           Create an account to save portraits, track your creations, and unlock premium features.
         </Text>
         <Pressable
           onPress={() => router.push('/(auth)/login')}
-          className="bg-primary rounded-xl px-8 py-3 mb-3"
+          style={[styles.primaryButton, { backgroundColor: colors.primary }]}
         >
-          <Text className="text-white font-semibold">Sign In</Text>
+          <Text style={styles.primaryButtonText}>Sign In</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/(auth)/signup')}>
-          <Text className="text-primary">Create Account</Text>
+          <Text style={[styles.linkText, { color: colors.primary }]}>Create Account</Text>
         </Pressable>
       </View>
     );
@@ -48,93 +57,88 @@ export default function ProfilePage() {
   const isPremium = user.subscriptionTier === 'premium' || user.subscriptionTier === 'lifetime';
 
   return (
-    <ScrollView className="flex-1 bg-background">
-      <View className="p-6">
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.content}>
         {/* User Info */}
-        <View className="items-center mb-8">
-          <View className="w-24 h-24 bg-primary/20 rounded-full items-center justify-center mb-4">
-            {user.avatarUrl ? (
-              <Ionicons name="person" size={48} color="#6366f1" />
-            ) : (
-              <Text className="text-primary text-3xl font-bold">
-                {user.email?.charAt(0).toUpperCase()}
-              </Text>
-            )}
+        <View style={styles.userInfo}>
+          <View style={[styles.avatar, { backgroundColor: `${colors.primary}20` }]}>
+            <Text style={[styles.avatarText, { color: colors.primary }]}>
+              {user.email?.charAt(0).toUpperCase()}
+            </Text>
           </View>
-          <Text className="text-white text-xl font-semibold">
+          <Text style={[styles.userName, { color: colors.text }]}>
             {user.displayName || user.email}
           </Text>
-          <View
-            className={`mt-2 px-3 py-1 rounded-full ${
-              isPremium ? 'bg-accent' : 'bg-muted'
-            }`}
-          >
-            <Text className={`text-sm font-medium ${isPremium ? 'text-white' : 'text-muted-foreground'}`}>
+          <View style={[styles.tierBadge, { backgroundColor: isPremium ? colors.accent : colors.muted }]}>
+            <Text style={styles.tierBadgeText}>
               {user.subscriptionTier.charAt(0).toUpperCase() + user.subscriptionTier.slice(1)} Plan
             </Text>
           </View>
         </View>
 
         {/* Stats */}
-        <View className="flex-row mb-6">
-          <View className="flex-1 bg-card rounded-xl p-4 mr-2 items-center">
-            <Text className="text-3xl font-bold text-primary">{user.totalGenerations}</Text>
-            <Text className="text-muted-foreground text-sm">Total Created</Text>
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statNumber, { color: colors.primary }]}>{user.totalGenerations}</Text>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>Total Created</Text>
           </View>
-          <View className="flex-1 bg-card rounded-xl p-4 ml-2 items-center">
-            <Text className="text-3xl font-bold text-primary">
-              {isPremium ? '∞' : PRICING.FREE.dailyLimit - user.dailyGenerationsUsed}
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statNumber, { color: colors.primary }]}>
+              {isPremium
+                ? `${Math.max(0, PRICING.PREMIUM.dailyLimit - user.dailyGenerationsUsed)}`
+                : `${Math.max(0, PRICING.FREE.freeTotalImages - user.freeImagesUsed)}`}
             </Text>
-            <Text className="text-muted-foreground text-sm">Today Remaining</Text>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>
+              {isPremium ? 'Today Remaining' : 'Free Left'}
+            </Text>
           </View>
         </View>
 
         {/* Premium Upgrade */}
         {!isPremium && (
-          <View className="bg-gradient-to-r from-accent/20 to-primary/20 border border-accent/30 rounded-2xl p-6 mb-6">
-            <View className="flex-row items-center mb-3">
-              <Ionicons name="crown" size={24} color="#f59e0b" />
-              <Text className="text-white font-semibold text-lg ml-2">Upgrade to Premium</Text>
+          <View style={[styles.upgradeCard, { backgroundColor: colors.card, borderColor: colors.accent }]}>
+            <View style={styles.upgradeHeader}>
+              <Ionicons name="star" size={24} color={colors.accent} />
+              <Text style={[styles.upgradeTitle, { color: colors.text }]}>Upgrade to Premium</Text>
             </View>
-            <Text className="text-muted-foreground mb-4">
-              Unlimited portraits, HD downloads, custom colors & backgrounds, and priority generation.
+            <Text style={[styles.upgradeDesc, { color: colors.muted }]}>
+              15 portraits daily, HD downloads, custom colors & backgrounds, and all breeds.
             </Text>
-            <View className="flex-row items-baseline mb-4">
-              <Text className="text-white text-3xl font-bold">
+            <View style={styles.upgradePricing}>
+              <Text style={[styles.upgradePrice, { color: colors.text }]}>
                 {formatPrice(PRICING.PREMIUM.monthlyPrice)}
               </Text>
-              <Text className="text-muted-foreground">/month</Text>
+              <Text style={[styles.upgradePeriod, { color: colors.muted }]}>/month</Text>
             </View>
-            <Pressable className="bg-accent rounded-xl p-4 items-center">
-              <Text className="text-white font-semibold">Upgrade Now</Text>
+            <Text style={[styles.lifetimeOption, { color: colors.muted }]}>
+              Or {formatPrice(PRICING.LIFETIME.price)} one-time (lifetime access)
+            </Text>
+            <Pressable style={[styles.upgradeButton, { backgroundColor: colors.accent }]}>
+              <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
             </Pressable>
           </View>
         )}
 
         {/* Menu Items */}
-        <View className="bg-card rounded-xl overflow-hidden mb-6">
-          <MenuItem icon="person-outline" label="Edit Profile" onPress={() => {}} />
-          <MenuItem icon="notifications-outline" label="Notifications" onPress={() => {}} />
-          <MenuItem icon="help-circle-outline" label="Help & Support" onPress={() => {}} />
-          <MenuItem icon="document-text-outline" label="Terms of Service" onPress={() => {}} />
-          <MenuItem icon="shield-outline" label="Privacy Policy" onPress={() => {}} last />
+        <View style={[styles.menuCard, { backgroundColor: colors.card }]}>
+          <MenuItem icon="person-outline" label="Edit Profile" colors={colors} onPress={() => {}} />
+          <MenuItem icon="notifications-outline" label="Notifications" colors={colors} onPress={() => {}} />
+          <MenuItem icon="help-circle-outline" label="Help & Support" colors={colors} onPress={() => {}} />
+          <MenuItem icon="document-text-outline" label="Terms of Service" colors={colors} onPress={() => router.push('/terms' as any)} />
+          <MenuItem icon="shield-outline" label="Privacy Policy" colors={colors} onPress={() => router.push('/privacy' as any)} last />
         </View>
 
         {/* Sign Out */}
         <Pressable
           onPress={handleLogout}
-          className="bg-destructive/20 border border-destructive rounded-xl p-4 items-center"
+          style={[styles.logoutButton, { borderColor: colors.destructive }]}
         >
-          <View className="flex-row items-center">
-            <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-            <Text className="text-destructive font-semibold ml-2">Sign Out</Text>
-          </View>
+          <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
+          <Text style={[styles.logoutText, { color: colors.destructive }]}>Sign Out</Text>
         </Pressable>
 
         {/* Version */}
-        <Text className="text-muted-foreground text-center text-sm mt-6">
-          Pup Portrait v0.1.0
-        </Text>
+        <Text style={[styles.version, { color: colors.muted }]}>Pup Portrait v0.1.0</Text>
       </View>
     </ScrollView>
   );
@@ -143,22 +147,197 @@ export default function ProfilePage() {
 function MenuItem({
   icon,
   label,
+  colors,
   onPress,
   last = false,
 }: {
   icon: string;
   label: string;
+  colors: any;
   onPress: () => void;
   last?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center p-4 ${!last ? 'border-b border-border' : ''}`}
+      style={[styles.menuItem, !last && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
     >
-      <Ionicons name={icon as any} size={22} color="#a1a1aa" />
-      <Text className="text-white flex-1 ml-3">{label}</Text>
-      <Ionicons name="chevron-forward" size={20} color="#a1a1aa" />
+      <Ionicons name={icon as any} size={22} color={colors.muted} />
+      <Text style={[styles.menuItemText, { color: colors.text }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={20} color={colors.muted} />
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: {
+    padding: 24,
+    maxWidth: maxWidth,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  primaryButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  linkText: {
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  userInfo: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  avatarText: {
+    fontSize: 36,
+    fontWeight: '700',
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  tierBadge: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  tierBadgeText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  upgradeCard: {
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 2,
+  },
+  upgradeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  upgradeTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  upgradeDesc: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  upgradePricing: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 4,
+  },
+  upgradePrice: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  upgradePeriod: {
+    fontSize: 14,
+  },
+  lifetimeOption: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  upgradeButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  upgradeButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  menuCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 24,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  menuItemText: {
+    flex: 1,
+    fontSize: 16,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  logoutText: {
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  version: {
+    textAlign: 'center',
+    fontSize: 12,
+    marginTop: 24,
+  },
+});

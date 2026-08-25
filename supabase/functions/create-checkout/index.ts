@@ -8,8 +8,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// 2026-05-19 relaunch: extend the planType union to include the new tiers.
+// 'pack' = $9.99 one-time, 12-portrait pack from photo upload.
+// 'realism_yearly' = $49.99/yr Premium Annual + Realism (Flux Kontext Pro toggle).
 interface CheckoutRequest {
-  planType: 'monthly' | 'yearly' | 'lifetime';
+  planType: 'monthly' | 'yearly' | 'lifetime' | 'pack' | 'realism_yearly';
   successUrl?: string;
   cancelUrl?: string;
 }
@@ -81,10 +84,14 @@ serve(async (req: Request) => {
     }
 
     // Price IDs (configure these in Stripe Dashboard)
+    // 2026-05-19: added pack + realism_yearly. Bill creates these in Stripe
+    // per the Pricing Config spec, then sets the env vars on this function.
     const priceIds: Record<string, string> = {
-      monthly: Deno.env.get('STRIPE_PRICE_MONTHLY') || 'price_monthly_placeholder',
-      yearly: Deno.env.get('STRIPE_PRICE_YEARLY') || 'price_yearly_placeholder',
+      monthly: Deno.env.get('STRIPE_PRICE_MONTHLY') || Deno.env.get('STRIPE_PRICE_PREMIUM_MONTHLY') || 'price_monthly_placeholder',
+      yearly: Deno.env.get('STRIPE_PRICE_YEARLY') || Deno.env.get('STRIPE_PRICE_PREMIUM_YEARLY') || 'price_yearly_placeholder',
       lifetime: Deno.env.get('STRIPE_PRICE_LIFETIME') || 'price_lifetime_placeholder',
+      pack: Deno.env.get('STRIPE_PRICE_PACK') || 'price_pack_placeholder',
+      realism_yearly: Deno.env.get('STRIPE_PRICE_REALISM_YEARLY') || 'price_realism_yearly_placeholder',
     };
 
     const priceId = priceIds[planType];
@@ -95,8 +102,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // Determine checkout mode
-    const mode = planType === 'lifetime' ? 'payment' : 'subscription';
+    // Determine checkout mode — 'lifetime' and 'pack' are one-time payments;
+    // monthly / yearly / realism_yearly are recurring subscriptions.
+    const mode = (planType === 'lifetime' || planType === 'pack') ? 'payment' : 'subscription';
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({

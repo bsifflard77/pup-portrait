@@ -1,15 +1,34 @@
 # Progress Tracker
 **Project:** Pup Portrait
-**Last Updated:** 2025-12-28
-**Current Focus:** Testing Weekly Counter Auth Fix
+**Last Updated:** 2026-08-25
+**Current Focus:** HOLD PR #2 — legal copy pending; Stripe live key is the blocker
 
 ---
 
 ## Active Task
+- **Task:** HOLD — do not merge PR #2, do not deploy, do not invent legal copy
+- **Feature:** Meta-ads legal pages + free-tier copy
+- **Started:** 2026-08-25
+- **Status:** ⏸️ HELD — invented legal markdown removed; waiting on Monomoy/HQ text. Stripe expired live key is the real blocker.
+
+### Hold 2026-08-25 (Jasper)
+- Do **not** merge PR #2. Do **not** deploy. App Store untouched.
+- Deleted invented `legal/privacy-policy.md`, `legal/terms-of-service.md`, and `apps/mobile/lib/legal-documents.ts`.
+- `/privacy` and `/terms` are hold pages that only link to https://monomoystrategies.com/privacy and https://monomoystrategies.com/terms. No policy/terms body until HQ sends the real text from those pages + `I:\My Drive\Projects\pup-portrait\legal`.
+- Header is **not** the priority. Real blocker: expired Stripe **live** secret (`STRIPE_SECRET_KEY` on the `create-checkout` / `stripe-webhook` Edge Functions). Rotate in Stripe Dashboard and update the Supabase secret. Do not put keys in the repo.
+
+### Still on the held PR (not for merge)
+- Signup/Create one-time 1+5 copy (not weekly).
+- `/pricing` route using existing HQ SKUs.
+- 390px `SiteNav` wrap (not the current priority).
+
+---
+
+## Prior Active Task
 - **Task:** Test authentication session fix for Edge Function
-- **Feature:** Weekly Counter Bug Fix
-- **Started:** 2025-12-17
-- **Status:** 🟡 READY TO TEST - Fix implemented, awaiting verification
+    - **Feature:** Weekly Counter Bug Fix
+    - **Started:** 2025-12-17
+    - **Status:** 🟡 READY TO TEST - Fix implemented, awaiting verification
 
 ### Problem Summary:
 The weekly counter showed "4 of 5 remaining" but never decremented after generating portraits.
@@ -485,7 +504,7 @@ CRITICAL INFO:
 - Edge Function `generate-portrait` deployed via Dashboard (not CLI)
 - Gemini API: model gemini-2.0-flash-exp, key in URL ?key=${googleAiKey}
 - Config: generationConfig: { responseModalities: ["Text", "Image"] }
-- Google AI API key: AIzaSyDu8JMjSFjT0JVvTp9a2KQQDWNQ_kFfHIo
+- Google AI API key: stored in Supabase Edge Function secrets as `GOOGLE_AI_API_KEY` (rotated 2026-05-19 — the prior key that was checked into this file has been revoked at console.cloud.google.com)
 - Test user: bsifflard747@gmail.com (ID: 3056dfad-b90a-4e46-a7e8-5e4b48b4c46a)
 
 CURRENT ISSUE (Ready to Test):

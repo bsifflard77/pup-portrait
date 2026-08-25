@@ -57,12 +57,11 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
         body.deviceFingerprint = await getDeviceFingerprint();
       }
 
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('Missing Supabase environment variables');
-      }
+      // 2026-05-19: import the configured client to pull the URL/key from
+      // the same place lib/supabase.ts does (env first, hardcoded fallback
+      // second). Fixes the Metro-on-Windows env-inlining issue.
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://rmalsvaoomhrgflioiqx.supabase.co';
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtYWxzdmFvb21ocmdmbGlvaXF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NzEyMTcsImV4cCI6MjA4MDU0NzIxN30.pUkhBzVxpHu8Qsr3hO9pYgZ6_E9X-MatS6Y4KHv5XR0';
 
       const functionUrl = `${supabaseUrl}/functions/v1/generate-portrait`;
 
@@ -108,6 +107,9 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
         prompt: portrait.prompt,
         isPremium: portrait.is_premium,
         isPublic: portrait.is_public,
+        // 2026-05-19: new fields from the relaunch — engine + photo-upload flag
+        engine: portrait.engine ?? null,
+        fromPhotoUpload: portrait.from_photo_upload ?? false,
         createdAt: portrait.created_at,
       };
 
@@ -149,6 +151,9 @@ export const usePortraitStore = create<PortraitState>((set, get) => ({
           prompt: p.prompt,
           isPremium: p.is_premium,
           isPublic: p.is_public,
+          // 2026-05-19: new fields from the relaunch — engine + photo-upload flag
+          engine: p.engine ?? null,
+          fromPhotoUpload: p.from_photo_upload ?? false,
           createdAt: p.created_at,
         })),
       });

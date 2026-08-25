@@ -1,0 +1,44 @@
+{
+  "cli": {
+    "version": ">= 18.1.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "REPLACE_AFTER_APP_STORE_CONNECT_APP_CREATED"
+      },
+      "android": {
+        "serviceAccountKeyPath": "D:/Monomoy/secrets/projects/pup-portrait-play-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}
