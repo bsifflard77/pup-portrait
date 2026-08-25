@@ -80,6 +80,51 @@ function InlineText({
   );
 }
 
+/** Hold page only. Do not put policy/terms body here — HQ will supply Monomoy text. */
+export function LegalHoldPage({
+  title,
+  officialUrl,
+}: {
+  title: string;
+  officialUrl: string;
+}) {
+  const router = useRouter();
+
+  return (
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={styles.content}
+      testID="legal-hold-page"
+    >
+      <SiteNav />
+      <View style={styles.inner}>
+        <Text accessibilityRole="header" style={styles.h1}>
+          {title}
+        </Text>
+        <Text style={styles.paragraph}>
+          The official document is published by Monomoy Strategies LLC:
+        </Text>
+        <Pressable onPress={() => Linking.openURL(officialUrl)} accessibilityRole="link">
+          <Text style={styles.link}>{officialUrl}</Text>
+        </Pressable>
+        <View style={styles.footerNav}>
+          <Pressable onPress={() => Linking.openURL('https://monomoystrategies.com/privacy')}>
+            <Text style={styles.footerLink}>Privacy Policy</Text>
+          </Pressable>
+          <Text style={styles.footerDot}>·</Text>
+          <Pressable onPress={() => Linking.openURL('https://monomoystrategies.com/terms')}>
+            <Text style={styles.footerLink}>Terms of Service</Text>
+          </Pressable>
+          <Text style={styles.footerDot}>·</Text>
+          <Pressable onPress={() => router.push('/')}>
+            <Text style={styles.footerLink}>Home</Text>
+          </Pressable>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
 export function LegalDocument({ markdown }: { markdown: string }) {
   const router = useRouter();
 

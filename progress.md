@@ -1,29 +1,26 @@
 # Progress Tracker
 **Project:** Pup Portrait
 **Last Updated:** 2026-08-25
-**Current Focus:** Legal pages + one-time free-offer copy
+**Current Focus:** HOLD PR #2 — legal copy pending; Stripe live key is the blocker
 
 ---
 
 ## Active Task
-- **Task:** Ship /privacy + /terms and align signup/Create with the one-time 1+5 offer
+- **Task:** HOLD — do not merge PR #2, do not deploy, do not invent legal copy
 - **Feature:** Meta-ads legal pages + free-tier copy
 - **Started:** 2026-08-25
-- **Status:** ✅ COMPLETE — verified on Expo web (390px + routes)
+- **Status:** ⏸️ HELD — invented legal markdown removed; waiting on Monomoy/HQ text. Stripe expired live key is the real blocker.
 
-### Completed 2026-08-25
-- Added Expo web routes `GET /privacy` and `GET /terms` that render HQ markdown from `legal/privacy-policy.md` and `legal/terms-of-service.md` as readable HTML (not an unmatched-route shell).
-- Signup benefit copy: "5 free portraits per week" → "1 watermarked portrait + 5 scenes (one-time)". Signup Terms/Privacy text is now real links to those pages.
-- Create tab counter: "Weekly Portraits" / "N of 6 remaining free" → "Free offer" + "1 watermarked portrait + 5 scenes · N of 6 remaining" (one-time grant, not a weekly refill). Paid SKUs untouched.
-- Mobile header (~390px): stacked `SiteNav` so logo, Pricing, Sign in, and Get started free no longer collide or clip. CTA is a full-width row under 720px (CSS last-child + wrap) so "Get started free" cannot clip even when RN Dimensions reports a desktop width.
-- Added `GET /pricing` using the existing HQ `TIERS_DISPLAY` SKUs. Header Pricing links there. Signed-out plan CTAs go to signup.
+### Hold 2026-08-25 (Jasper)
+- Do **not** merge PR #2. Do **not** deploy. App Store untouched.
+- Deleted invented `legal/privacy-policy.md`, `legal/terms-of-service.md`, and `apps/mobile/lib/legal-documents.ts`.
+- `/privacy` and `/terms` are hold pages that only link to https://monomoystrategies.com/privacy and https://monomoystrategies.com/terms. No policy/terms body until HQ sends the real text from those pages + `I:\My Drive\Projects\pup-portrait\legal`.
+- Header is **not** the priority. Real blocker: expired Stripe **live** secret (`STRIPE_SECRET_KEY` on the `create-checkout` / `stripe-webhook` Edge Functions). Rotate in Stripe Dashboard and update the Supabase secret. Do not put keys in the repo.
 
-### Verified 2026-08-25 (Expo web localhost:8081)
-- `/privacy` and `/terms` render readable Monomoy/Pup Portrait legal copy (not Unmatched Route).
-- Signup benefit is `1 watermarked portrait + 5 scenes (one-time)`; Terms/Privacy links land on those pages.
-- Create tab shows `Free offer` / `1 watermarked portrait + 5 scenes · 6 of 6 remaining`.
-- 390px header: logo, Pricing, Sign in, Get started free visible, no `Pup PortraitPricing` collision.
-- `/pricing` lists $9.99 Pack / $5.99/mo / $29.99/yr / $49.99/yr Realism / $49.99 lifetime.
+### Still on the held PR (not for merge)
+- Signup/Create one-time 1+5 copy (not weekly).
+- `/pricing` route using existing HQ SKUs.
+- 390px `SiteNav` wrap (not the current priority).
 
 ---
 

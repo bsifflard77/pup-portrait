@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
-import { LegalDocument } from '../components/LegalDocument';
-import { PRIVACY_POLICY_MD } from '../lib/legal-documents';
+import { LegalHoldPage } from '../components/LegalDocument';
 
 export default function PrivacyPage() {
   return (
     <>
       <Stack.Screen options={{ title: 'Privacy Policy', headerShown: false }} />
-      <LegalDocument markdown={PRIVACY_POLICY_MD} />
+      <LegalHoldPage
+        title="Privacy Policy"
+        officialUrl="https://monomoystrategies.com/privacy"
+      />
     </>
   );
 }

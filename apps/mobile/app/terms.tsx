@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
-import { LegalDocument } from '../components/LegalDocument';
-import { TERMS_OF_SERVICE_MD } from '../lib/legal-documents';
+import { LegalHoldPage } from '../components/LegalDocument';
 
 export default function TermsPage() {
   return (
     <>
       <Stack.Screen options={{ title: 'Terms of Service', headerShown: false }} />
-      <LegalDocument markdown={TERMS_OF_SERVICE_MD} />
+      <LegalHoldPage
+        title="Terms of Service"
+        officialUrl="https://monomoystrategies.com/terms"
+      />
     </>
   );
 }
