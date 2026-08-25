@@ -9,7 +9,7 @@
 - **Task:** Ship /privacy + /terms and align signup/Create with the one-time 1+5 offer
 - **Feature:** Meta-ads legal pages + free-tier copy
 - **Started:** 2026-08-25
-- **Status:** 🟡 IN PROGRESS — legal pages, 1+5 copy, mobile nav, /pricing; verifying in browser
+- **Status:** ✅ COMPLETE — verified on Expo web (390px + routes)
 
 ### Completed 2026-08-25
 - Added Expo web routes `GET /privacy` and `GET /terms` that render HQ markdown from `legal/privacy-policy.md` and `legal/terms-of-service.md` as readable HTML (not an unmatched-route shell).
@@ -17,6 +17,13 @@
 - Create tab counter: "Weekly Portraits" / "N of 6 remaining free" → "Free offer" + "1 watermarked portrait + 5 scenes · N of 6 remaining" (one-time grant, not a weekly refill). Paid SKUs untouched.
 - Mobile header (~390px): stacked `SiteNav` so logo, Pricing, Sign in, and Get started free no longer collide or clip.
 - Added `GET /pricing` using the existing HQ `TIERS_DISPLAY` SKUs. Header Pricing links there. Signed-out plan CTAs go to signup.
+
+### Verified 2026-08-25 (Expo web localhost:8081)
+- `/privacy` and `/terms` render readable Monomoy/Pup Portrait legal copy (not Unmatched Route).
+- Signup benefit is `1 watermarked portrait + 5 scenes (one-time)`; Terms/Privacy links land on those pages.
+- Create tab shows `Free offer` / `1 watermarked portrait + 5 scenes · 6 of 6 remaining`.
+- 390px header: logo, Pricing, Sign in, Get started free visible, no `Pup PortraitPricing` collision.
+- `/pricing` lists $9.99 Pack / $5.99/mo / $29.99/yr / $49.99/yr Realism / $49.99 lifetime.
 
 ---
 
