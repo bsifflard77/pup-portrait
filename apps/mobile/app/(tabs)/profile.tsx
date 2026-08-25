@@ -124,8 +124,8 @@ export default function ProfilePage() {
           <MenuItem icon="person-outline" label="Edit Profile" colors={colors} onPress={() => {}} />
           <MenuItem icon="notifications-outline" label="Notifications" colors={colors} onPress={() => {}} />
           <MenuItem icon="help-circle-outline" label="Help & Support" colors={colors} onPress={() => {}} />
-          <MenuItem icon="document-text-outline" label="Terms of Service" colors={colors} onPress={() => {}} />
-          <MenuItem icon="shield-outline" label="Privacy Policy" colors={colors} onPress={() => {}} last />
+          <MenuItem icon="document-text-outline" label="Terms of Service" colors={colors} onPress={() => router.push('/terms' as any)} />
+          <MenuItem icon="shield-outline" label="Privacy Policy" colors={colors} onPress={() => router.push('/privacy' as any)} last />
         </View>
 
         {/* Sign Out */}

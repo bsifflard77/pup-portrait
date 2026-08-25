@@ -57,6 +57,20 @@ export default function RootLayout() {
             presentation: 'modal',
           }}
         />
+        <Stack.Screen
+          name="privacy"
+          options={{
+            title: 'Privacy Policy',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="terms"
+          options={{
+            title: 'Terms of Service',
+            headerShown: false,
+          }}
+        />
       </Stack>
     </>
   );

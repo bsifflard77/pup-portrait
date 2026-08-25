@@ -1,15 +1,28 @@
 # Progress Tracker
 **Project:** Pup Portrait
-**Last Updated:** 2025-12-28
-**Current Focus:** Testing Weekly Counter Auth Fix
+**Last Updated:** 2026-08-25
+**Current Focus:** Legal pages + one-time free-offer copy
 
 ---
 
 ## Active Task
+- **Task:** Ship /privacy + /terms and align signup/Create with the one-time 1+5 offer
+- **Feature:** Meta-ads legal pages + free-tier copy
+- **Started:** 2026-08-25
+- **Status:** 🟡 IN PROGRESS — routes and copy landed; verifying in browser
+
+### Completed 2026-08-25
+- Added Expo web routes `GET /privacy` and `GET /terms` that render HQ markdown from `legal/privacy-policy.md` and `legal/terms-of-service.md` as readable HTML (not an unmatched-route shell).
+- Signup benefit copy: "5 free portraits per week" → "1 watermarked portrait + 5 scenes (one-time)". Signup Terms/Privacy text is now real links to those pages.
+- Create tab counter: "Weekly Portraits" / "N of 6 remaining free" → "Free offer" + "1 watermarked portrait + 5 scenes · N of 6 remaining" (one-time grant, not a weekly refill). Paid SKUs untouched.
+
+---
+
+## Prior Active Task
 - **Task:** Test authentication session fix for Edge Function
-- **Feature:** Weekly Counter Bug Fix
-- **Started:** 2025-12-17
-- **Status:** 🟡 READY TO TEST - Fix implemented, awaiting verification
+    - **Feature:** Weekly Counter Bug Fix
+    - **Started:** 2025-12-17
+    - **Status:** 🟡 READY TO TEST - Fix implemented, awaiting verification
 
 ### Problem Summary:
 The weekly counter showed "4 of 5 remaining" but never decremented after generating portraits.

@@ -124,10 +124,12 @@ export default function HomePage() {
             <View style={[styles.usageCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View>
                 <Text style={[styles.usageTitle, { color: colors.text }]}>
-                  {tier === 'free' ? 'Weekly Portraits' : 'Daily Portraits'}
+                  {tier === 'free' ? 'Free offer' : 'Daily Portraits'}
                 </Text>
                 <Text style={[styles.usageSubtitle, { color: colors.muted }]}>
-                  {remaining} of {limit} remaining {usagePeriod}
+                  {tier === 'free'
+                    ? `1 watermarked portrait + 5 scenes · ${remaining} of ${limit} remaining`
+                    : `${remaining} of ${limit} remaining ${usagePeriod}`}
                 </Text>
               </View>
               <Pressable

@@ -77,7 +77,7 @@ export default function SignupPage() {
           {/* Benefits */}
           <View style={[styles.benefitsCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.benefitsTitle, { color: colors.text }]}>Free account includes:</Text>
-            <BenefitItem text="5 free portraits per week" colors={colors} />
+            <BenefitItem text="1 watermarked portrait + 5 scenes (one-time)" colors={colors} />
             <BenefitItem text="Save your favorite creations" colors={colors} />
             <BenefitItem text="Access on any device" colors={colors} />
             <BenefitItem text="15 popular breeds to choose from" colors={colors} />
@@ -181,7 +181,20 @@ export default function SignupPage() {
 
           {/* Terms */}
           <Text style={[styles.terms, { color: colors.muted }]}>
-            By creating an account, you agree to our Terms of Service and Privacy Policy
+            By creating an account, you agree to our{' '}
+            <Text
+              style={[styles.termsLink, { color: colors.primary }]}
+              onPress={() => router.push('/terms' as any)}
+            >
+              Terms of Service
+            </Text>
+            {' '}and{' '}
+            <Text
+              style={[styles.termsLink, { color: colors.primary }]}
+              onPress={() => router.push('/privacy' as any)}
+            >
+              Privacy Policy
+            </Text>
           </Text>
         </View>
       </ScrollView>
@@ -344,5 +357,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     marginTop: 24,
+  },
+  termsLink: {
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
